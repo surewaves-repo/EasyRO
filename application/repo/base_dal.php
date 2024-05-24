@@ -46,6 +46,8 @@ use application\models_repo\RoCancelChannelRepo;
 
 use application\models_repo\RoChannelFileLocationRepo;
 use application\models_repo\RoApprovalRemarksRepo;
+use application\models_repo\RoNetworkRoReportDetailsRepo;
+use application\models_repo\RoMailDataRepo;
 
 include_once APPPATH . 'models_repo/ro_am_external_ro_repo.php';
 include_once APPPATH . 'models_repo/ro_amount_repo.php';
@@ -91,6 +93,8 @@ include_once APPPATH . 'models_repo/ro_cancel_channel_repo.php';
 
 include_once APPPATH . 'models_repo/ro_channel_file_location_repo.php';
 include_once APPPATH . 'models_repo/ro_approval_remarks_repo.php';
+include_once APPPATH . 'models_repo/ro_network_ro_report_details_repo.php';
+include_once APPPATH . 'models_repo/ro_mail_data_repo.php';
 
 class BaseDAL
 {
@@ -138,6 +142,8 @@ class BaseDAL
 
     public $RoChannelFileLocation;
     public $RoApprovalRemarks;
+    public $RoNetworkRoReportDetails;
+    public $RoMailData;
 
     public function __construct()
     {
@@ -185,5 +191,7 @@ class BaseDAL
 
         $this->RoChannelFileLocation = new RoChannelFileLocationRepo();
         $this->RoApprovalRemarks = new RoApprovalRemarksRepo();
+        $this->RoNetworkRoReportDetails = new RoNetworkRoReportDetailsRepo();
+        $this->RoMailData = new RoMailDataRepo();
     }
 }

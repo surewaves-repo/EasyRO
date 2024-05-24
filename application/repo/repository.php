@@ -50,7 +50,8 @@ include_once APPPATH . 'models2/ro_cancel_channel_model.php';
 
 include_once APPPATH . 'models2/ro_channel_file_location_model.php';
 include_once APPPATH . 'models2/ro_approval_remarks_model.php';
-
+include_once APPPATH . 'models2/ro_network_ro_report_details_model.php';
+include_once APPPATH . 'models2/ro_mail_data_model.php';
 abstract class Repository implements RepositoryInterface
 {
     private $model;
