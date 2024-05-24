@@ -1,0 +1,25 @@
+#non_fct_ro_activate_client_table
+{
+    table-layout: fixed !important;
+    margin-top: -17px !important;
+}
+.form-control
+{
+    width: 88% !important;
+    height: 28px !important;
+    font-size: 0.78rem !important;
+    color: black !important;
+    border: 1px solid gray !important;
+}
+#non_fct_ro_activate_client_submit_btn
+{
+    float: right;
+}
+.invalid
+{
+    color:red;
+}
+select.invalid
+{
+    border:1px solid red !important;
+}

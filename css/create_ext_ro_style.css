@@ -1,0 +1,174 @@
+#txt_am_name{
+    border:none;
+    outline: none;
+    background: none;
+}
+#create_ext_ro_table
+{
+
+
+    margin-top: -17px !important;
+
+}
+#create_ext_ro_table td
+{
+    color: gray;
+    font-size: 12px !important;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+.invalid_error
+{
+    color:red;
+}
+ .stylingwidth
+{
+    width:220px;
+}
+.link
+{
+    color:blue;
+    cursor: pointer;
+}
+.form-control
+{
+    height: 28px !important;
+    font-size: 0.78rem !important;
+    color: black !important;
+    border: 1px solid gray !important;
+}
+
+
+
+.first_row
+{
+    border-top: none !important;
+}
+#create_btn
+{
+    float:right;
+    height:30px;
+    width:100px;
+}
+.Asterik
+{
+    color:Red;
+}
+
+.fa-calendar
+{
+    cursor: pointer;
+}
+b
+{
+    color:white !important;
+
+}
+.multiselect-group
+{
+    background-color:#0B85A1 !important;
+
+}
+.multiselect-group
+{
+    color:white;
+}
+
+.checkbox
+{
+    color:black !important;
+}
+.checkbox:hover
+{
+    color: white !important;
+}
+.multiselect-container li:hover
+{
+    background-color: darkgray !important;
+    width: 220px !important;
+    color: white !important;
+
+}
+.multiselect-container li
+{
+    font-size: 12px !important;
+    width:220px;
+}
+
+.multiselect-selected-text
+{
+    font-size: 12px;
+}
+.btn
+{
+    line-height: 8px;
+}
+.btn-default
+{
+    width: 88% !important;
+    height: 28px !important;
+    font-size: 0.78rem !important;
+    color: black !important;
+    border: 1px solid gray !important;
+}
+.dropdown-menu
+{
+    border:1px solid blue;
+}
+.table th
+{
+    border-top:none !important;
+}
+td.no_border
+{
+    border:none !important;
+}
+
+select.invalid_error
+{
+    border:1px solid red !important;
+}
+.invalid
+{
+    color:red;
+}
+input.invalid_error
+{
+    border: 1px solid red !important;
+}
+
+#create_ext_ro_modal_header
+{
+    background-color: #f6f6f6;
+    height: 54px;
+}
+.modal-backdrop {
+    display: none;
+}
+
+.modal {
+    background: rgba(0, 0, 0, 0.5);
+}
+#loading_imag
+{
+    position: fixed;
+    top:50%;
+    left:50%;
+    margin-left: auto;
+    margin-right: auto;
+    width: 60px;
+    height:60px;
+}
+#regionSelectBox
+{
+    border:none;
+    outline: none;
+    background: none;
+}
+#reset_btn
+{
+    float: right !important;
+    height: 30px !important;
+    width: 100px !important;
+    margin-left: 5%;
+}

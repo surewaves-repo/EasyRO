@@ -1,0 +1,2 @@
+BG-color:   #A14073
+inner-body: #AE4D80

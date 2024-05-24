@@ -1,0 +1,12 @@
+{
+  "require": {
+    "illuminate/database": "5.8.31",
+    "ext-memcached": "*",
+    "ext-memcache": "*"
+  },
+  "autoload": {
+    "classmap": [
+      "application/models"
+    ]
+  }
+}

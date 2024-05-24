@@ -1,0 +1,84 @@
+#non_fct_ext_ro_table
+{
+    table-layout: fixed !important;
+    margin-top: -17px !important;
+}
+#txt_am_name
+{
+    border: none;
+    outline: none;
+    background: none;
+}
+.Asterik
+{
+    color:Red;
+}
+#create_non_btn
+{
+    float: right;
+    line-height:18px;
+}
+.form-control
+{
+    width: 88% !important;
+    height: 28px !important;
+    font-size: 0.78rem !important;
+    color: black !important;
+    border: 1px solid gray !important;
+}
+#non_fct_ext_ro_table td
+{
+    color: gray;
+    font-size: 12px !important;
+    font-family: Helvetica, Arial, sans-serif;
+}
+.stylingwidth
+{
+    width:220px;
+}
+#regionSelectBox
+{
+    border: none;
+    outline: none;
+    background: none;
+}
+.link
+{
+    color:blue;
+    cursor: pointer;
+}
+.monthwise_ro_amount
+{
+    border-top:none !important;
+    border-bottom:none;
+    color:black !important;
+}
+
+#non_fct_ro_modal_header
+{
+    background-color: #f6f6f6;
+    height: 54px;
+}
+.modal-backdrop {
+    display: none;
+}
+
+.modal {
+    background: rgba(0, 0, 0, 0.5);
+}
+td.no_border
+{
+    border-top:none !important;
+}
+select.invalid_error
+{
+    border:1px solid red !important;
+}
+.invalid_error
+{
+    color:red;
+}
+input.invalid_error
+{
+    border: 1px solid red !important;
+}

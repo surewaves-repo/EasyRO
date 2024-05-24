@@ -1,0 +1,4 @@
+BG-color:     #24416B
+Table-header: #28589A
+Table-cell-A: #40659A
+Table-cell-B: #5c759D

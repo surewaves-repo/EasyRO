@@ -1,0 +1,34 @@
+.tsmsselect {
+    width: 45%;
+    float: left;
+    height: 200px;
+}
+
+.tsmsselect select {
+    width: 100%;
+}
+
+.tsmsoptions {
+    width: 10%;
+    float: left;
+}
+
+.tsmsoptions p {
+    margin: 2px;
+    text-align: center;
+    font-size: larger;
+    cursor: pointer;
+}
+
+.tsmsoptions p:hover {
+    color: White;
+    background-color: Silver;
+}
+
+.selectwidth {
+    width: 450px;
+}
+
+.multiselect {
+    height: 200px;
+}

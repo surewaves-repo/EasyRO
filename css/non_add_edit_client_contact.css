@@ -1,0 +1,44 @@
+.input_width
+{
+    width:220px !important;
+}
+#txt_client_name
+{
+    border:none;
+    outline:none;
+    background:none;
+}
+.Asterik
+{
+    color:red;
+}
+#non_add_edit_client_contact_table
+{
+    table-layout: fixed;
+    margin-top: -17px !important;
+}
+#non_add_edit_client_contact_table td
+{
+
+    color: gray;
+    font-size: 12px !important;
+    font-family: Helvetica, Arial, sans-serif;
+}
+#add_edit_btn
+{
+    width:100px !important;
+    height:30px !important;
+    float: right;
+}
+.invalid
+{
+    color:red;
+}
+input.invalid
+{
+    border: 1px solid red !important;
+}
+.first_row
+{
+    border-top: none !important;
+}

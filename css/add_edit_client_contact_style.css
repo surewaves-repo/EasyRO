@@ -1,0 +1,42 @@
+#add_edit_client_btn
+{
+    width:100px !important;
+    height:30px !important;
+    float: right;
+}
+#txt_add_edit_client_display_name
+{
+    border:none;
+    background:none;
+}
+#add_edit_client_contact_table
+{
+    table-layout: fixed;
+    margin-top: -17px !important;
+}
+#add_edit_client_contact_table td
+{
+
+    color: gray;
+    font-size: 12px !important;
+    font-family: Helvetica, Arial, sans-serif;
+}
+#create_ext_ro_table td
+{
+    color: gray;
+    font-size: 12px !important;
+    font-family: Helvetica, Arial, sans-serif;
+}
+.input_width
+{
+    width:220px !important;
+}
+.center {
+    position: absolute;
+    top:50%;
+    left:50%;
+    margin-left: auto;
+    margin-right: auto;
+    width: 60px;
+    height:60px;
+}

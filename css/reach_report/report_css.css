@@ -1,0 +1,223 @@
+/*.block .block_content ul li{
+	background:rgba(0, 0, 0, 0) none repeat scroll 0 0 !important;
+}*/
+.generate_report_btn {
+    background: rgba(0, 0, 0, 0) url("../../images/generate_button_1.png") repeat scroll center top;
+    border: 0 none;
+    color: #fff;
+    cursor: pointer;
+    font-family: "Titillium800", "Trebuchet MS", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: normal;
+    height: 30px;
+    line-height: 30px;
+    margin-right: 10px;
+    text-shadow: 1px 1px 0 #0a5482;
+    text-transform: uppercase;
+    vertical-align: middle;
+    width: 140px;
+}
+
+.generate_report_btn:hover {
+    background: rgba(0, 0, 0, 0) url("../../images/generate_button_2.png") repeat scroll center top;
+    border: 0 none;
+    color: #fff;
+    cursor: pointer;
+    font-family: "Titillium800", "Trebuchet MS", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: normal;
+    height: 30px;
+    line-height: 30px;
+    margin-right: 10px;
+    text-shadow: 1px 1px 0 #0a5482;
+    text-transform: uppercase;
+    vertical-align: middle;
+    width: 140px;
+}
+
+.block .block_content ul {
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+}
+
+.block .block_content {
+    overflow: initial !important;
+    display: inline-block;
+}
+
+.sub_content1, .sub_content2 {
+    float: left;
+    width: 100%;
+}
+
+.shadow_div {
+    border-bottom: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+    float: left;
+    margin-bottom: 20px;
+    height: 6%;
+    background-color: #fbfbfb;
+    padding-top: 19px;
+    font-family: "Titillium999", "Trebuchet MS", Arial, sans-serif;
+    font-size: 18px;
+    font-weight: normal;
+    text-shadow: 1px 1px 0 #fff;
+    text-transform: uppercase;
+    width: 60%;
+}
+
+.sub_content1_child {
+    float: left;
+    width: 60%;
+    margin: 5px 0px 12px 31px;
+}
+
+.sub_content1_child div {
+    float: left;
+    width: 99%;
+    height: 8%
+}
+
+.sub_content1_child div span {
+    float: left;
+    width: 26%;
+}
+
+.sub_content1_child div label {
+    float: left;
+    width: 42%;
+    margin-top: 10px;
+}
+
+.sub_content1_child div span input {
+    float: left;
+    width: 69%;
+    height: 70%;
+    text-align: center;
+}
+
+.sub_content2_child {
+    float: left;
+    width: 100%;
+    margin: 5px 0px 12px 0;
+}
+
+.sub_content2_child_sub1 {
+    float: left;
+    width: 100%;
+}
+
+.label_heading {
+    float: left;
+    width: 7%;
+}
+
+.sub_content2_child_sub2 {
+    width: 100%;
+}
+
+.sub_content2_child_sub2_heading {
+
+    width: 100%;
+}
+
+.sub_content2_child_sub2_heading div {
+    margin: 17px 0 0;
+    padding: 0 67px 0 0px;
+    border-left: 1px solid #DDD;
+    border-top: 1px solid #DDD;
+    border-bottom: 1px solid #DDD;
+    width: 13.5%;
+    text-align: center;
+    float: left;
+    padding: 13px 0;
+    height: 5%;
+
+}
+
+.lbl_endcell {
+    border-right: 1px solid #DDD;
+}
+
+.sub_content2_child_sub2_value {
+    width: 100%;
+
+}
+
+.sub_content2_child_sub2_value div select {
+
+    width: 94%;
+/ / height: 7 %;
+}
+
+.sub_content2_child_sub2_value > div {
+    border-left: 1px solid #fff;
+/ / border-top: 1 px solid #DDD;
+
+    width: 13.5%;
+    text-align: center;
+    float: left;
+    padding: 13px 0;
+/ / margin-top: 50 px;
+    line-height: 21px;
+
+}
+
+.sub_content2_child_sub2_value {
+    border-bottom: 1px solid #DDD;
+    display: inline-block;
+}
+
+.sub_content2_child_sub2_value:nth-child(odd) {
+
+    background-color: #fbfbfb;
+}
+
+.sub_content2_child_sub2_value:nth-child(odd) div {
+
+    border-left: 1px solid #fbfbfb;
+}
+
+.content_value {
+    width: 68%;
+    height: 4%;
+    text-align: center;
+}
+
+.fixed {
+    position: fixed;
+    top: 0;
+    left: 84px;
+    width: 88%;
+    z-index: 5;
+    background: #fff none repeat scroll 0 0;
+    box-shadow: 4px 20px 37px -8px rgba(0, 0, 0, 0.42);
+    z-index: 9999;
+}
+
+#market_list {
+    width: 12%;
+    height: 5%;
+}
+
+.list_markets {
+    float: left;
+    width: 93%;
+}
+
+.submit_button {
+    float: left;
+    margin-bottom: 8px;
+    margin-left: 488px;
+    margin-top: 14px;
+}
+
+.error {
+    border-style: solid;
+    border-color: red;
+}
+
+ul.chosen-choices.error_select {
+    border-style: solid;
+    border-color: red;
+}

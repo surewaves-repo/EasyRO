@@ -1,0 +1,2 @@
+BG-color:   #746B26
+inner-body: #7F762B

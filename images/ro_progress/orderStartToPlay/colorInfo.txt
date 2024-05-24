@@ -1,0 +1,2 @@
+BG-color:   #3B6B2F
+inner-body: #447E34

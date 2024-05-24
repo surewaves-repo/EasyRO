@@ -1,0 +1,26 @@
+#non_fct_ro_add_agency_table
+{
+    table-layout: fixed !important;
+    margin-top: -17px !important;
+}
+.Asterik
+{
+    color:Red;
+}
+#submit_add_agency_btn
+{
+    width:100px;
+    float:right;
+}
+.stylingwidth
+{
+    width:220px;
+}
+.invalid
+{
+    color:red;
+}
+input.invalid
+{
+    border: 1px solid red !important;
+}
