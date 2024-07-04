@@ -207,7 +207,7 @@ We look forward to your full cooperation in scheduling the campaign accordingly 
 <br/>
 In-case of any clarifications, please contact RO-support@surewaves.com.<br/><br/>
 
-%INSERT_NOTICE_RO%<br/><br/>
+<!-- %INSERT_NOTICE_RO%<br/><br/> -->
 
 Regards,<br/>
 Sony Saha,<br/>
@@ -643,7 +643,7 @@ Please provide the reference of the '%NETWORK_RO%' in your invoice to be submitt
 <br/><br/>
 In-case of any clarifications, please contact RO-support@surewaves.com.<br/><br/>
 
-%INSERT_NOTICE_RO%<br/><br/>
+<!-- %INSERT_NOTICE_RO%<br/><br/> -->
 
 Regards,<br/>
 Sony Saha,<br/>
@@ -671,7 +671,7 @@ Please provide the reference of the '%NETWORK_RO%' in your invoice to be submitt
 <br/><br/>
 In-case of any clarifications, please contact RO-support@surewaves.com.<br/><br/>
 
-%INSERT_NOTICE_RO%<br/><br/>
+<!-- %INSERT_NOTICE_RO%<br/><br/> -->
 
 Regards,<br/>
 Sony Saha,<br/>
@@ -697,7 +697,7 @@ Please provide the reference of the '%NETWORK_RO%' for any communication regardi
 <br/><br/>
 In-case of any clarifications, please contact RO-support@surewaves.com.<br/><br/>
 
-%INSERT_NOTICE_RO%<br/><br/>
+<!-- %INSERT_NOTICE_RO%<br/><br/> -->
 
 Regards,<br/>
 Sony Saha,<br/>

@@ -327,7 +327,7 @@ class postApprovalRoService
             array_push($userEmails, $usr['user_email']);
         }
 
-        $userEmailIds = implode(",", $userEmails) . ',' . $amEmailId[0]['user_email'];
+        $userEmailIds = implode(",", $userEmails) . ',' . $amEmailId[0]['user_email'] . ',' . OPS_SUPPORT_EMAIL ;
         log_message('info', 'In postApprovalRoService@approvalMailToSchedulerAndOperation | Users EmailID of profile Id : 3,8 => ' . print_r($userEmailIds, True));
 
         log_message('info', 'In postApprovalRoService@approvalMailToSchedulerAndOperation | StartDate => ' . print_r($startDate, True));

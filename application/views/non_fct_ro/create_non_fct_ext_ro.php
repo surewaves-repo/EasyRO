@@ -153,12 +153,38 @@
             <td width="25%">
                 <select class="form-control stylingwidth" name="fin_year" id="fin_year" >
                     <option selected disabled>Choose Year</option>
-                    <?php $year = 2019;
-                    while ($year < 2024) {
-                        $z = $year + 1; ?>
-                        <option value="<?php echo $year . "-" . $z ?>"><?php echo $year . "-" . $z ?></option>
-                        <?php $year++;
-                    } ?>
+                    <?php 
+                            $currentYear = date('Y');
+                            $financialYears = [];
+
+// Loop to generate last 5 financial years including the current year
+                            for ($i = 0; $i <= 3; $i++) {
+    // Calculate start and end years of the financial year
+    
+                                $endYear = $currentYear - $i;
+                                if($endYear == $currentYear && date('m') > 4){
+                                    $startYear = $currentYear;
+                                    $endYear = $startYear + 1;
+                                }else{
+                                    $startYear = $endYear - 1;
+                                }
+ 
+                                $financialYear = $startYear . '-' . $endYear;
+
+    // Add the formatted financial year to the array
+                                $financialYears[] = $financialYear;
+                                    }
+                                $financialYears = array_reverse($financialYears);
+// Print the last 3 financial years including the current year
+//foreach ($financialYears as $year) {
+ //   echo $year . "\n";
+                                foreach ($financialYears as $year) {
+                             ?>
+			 
+                        <option value="<?php echo $year ;  ?>"><?php echo $year ; ?></option>
+                        <?php 
+                    } 
+		 ?>
                 </select>
             </td>
             <td colspan="3">&nbsp;</td>

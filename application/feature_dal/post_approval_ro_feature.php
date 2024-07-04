@@ -100,7 +100,7 @@ class postApprovalRoFeature extends BaseDAL
     public function getUserEmails($profileIds, $isTestUser)
     {
         $condition = array('is_test_user' => $isTestUser);
-        $whereInCondition = array('whereInColumn' => 'profile_id', 'whereInData' => $profileIds);
+        $whereInCondition = array('whereInColumn' => 'profile_id', 'whereInData' => $profileIds, 'active' => 1);
         $result = $this->RoUser->getColumnsWhereWhereIn($condition, $whereInCondition, array('*'));
         if ($result->count() > 0) {
             log_message('INFO', 'In PostApprovalRoFeature@getUserEmails | Data Found - ' . print_r($result, true));

@@ -3,7 +3,7 @@
 use application\feature_dal\GenerateRoPdfFeature;
 use application\services\feature_services\GenerateRoPdfService;
 use Illuminate\Database\Capsule\Manager as DB;
-use Illuminate\Database\QueryException;
+//use Illuminate\Database\QueryException;
 
 include_once APPPATH . 'feature_dal/generate_ro_pdf_feature.php';
 include_once APPPATH . 'services/feature_services/generate_ro_pdf_service.php';
@@ -26,6 +26,7 @@ class Cron_job extends CI_Controller
         if (ENABLE_PROFILER == '1') {
             $this->output->enable_profiler("true");
         }
+        $this->CI = &get_instance();
     }
 
     public function try_pdf()
@@ -113,8 +114,8 @@ class Cron_job extends CI_Controller
     }
 
     /**
-     * Author: Yash
-     * Date: 20 November, 2019
+     * Author: Yash & Biswa Bijayee Mishra
+     * Date: 20 November, 2019 
      *
      * Description: Send PDFs to network, detailing about full Schedule of playing content
      */
@@ -122,7 +123,7 @@ class Cron_job extends CI_Controller
     {
         $this->load->library('Cron_Lock_Manager');
         try {
-            DB::beginTransaction();
+            
             $isLock = $this->lock('generate_ro_pdfs');
             log_message('info', 'In cron_job@generate_ro_pdfs | Entered');
 
@@ -309,25 +310,81 @@ class Cron_job extends CI_Controller
                         $channelIDs[$nwId] = array_unique($Channels);
                     }
                     log_message('info', 'In cron_job@generate_ro_pdfs | Channel Ids For All Networks=> ' . print_r($channelIDs, True));
-
+                   
                     foreach ($networkIds as $nwId) {
+                        $networkRoNo = '';
+                        DB::beginTransaction();
                         $condition = array('internal_ro_number' => $internalRoNo, 'customer_id' => $nwId);
                         $statusData = array('pdf_generation_status' => 0, 'pdf_processing' => 1);
                         $featureObj->updatePdfStatusInRoApprovedNetworks($condition, $statusData);
                         log_message('info', 'In cron_job@generate_ro_pdfs | Updated ProcessingStatus as 1 for NwId ' . print_r($nwId, True));
 
-                        $pdfData = $this->generatePdfData($RoDetailNetworkWise[$internalRoNo][$nwId],
+                        $pdfData = $pdfServiceObj->generatePdfData($RoDetailNetworkWise[$internalRoNo][$nwId],
                             $marketCampaignPeriodDetailNetworkWise[$nwId],
                             $internalRoNo, $nwId,
                             $scheduleDetailNetworkWise[$internalRoNo][$nwId],
                             $channelIDs[$nwId], $DayParts);
+			//echo "pdfData---";echo "<pre>";print_r($pdfData);
+                        if($pdfData['gotError']){
+                            DB::rollBack();
+                            continue;
+                        }
                         log_message('info', 'In cron_job@generate_ro_pdfs | PdfData for NwId ' . $nwId . ' => ' . print_r($pdfData, True));
-                        $pdfServiceObj->GeneratePdf($pdfData);
+                        $networkRoNo = $pdfData['data']['nw_ro_number'];
+			echo "networkRoNo----".$networkRoNo;echo "<br>";
+                        $pdfFilesDetails    = $pdfServiceObj->GeneratePdf($pdfData['data']);
+			echo "pdfFilesDetails---"; echo "<pre>";print_r($pdfFilesDetails);
+                        if($pdfFilesDetails['gotError']){
+                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function as GeneratePdf have error');
+                            DB::rollBack();
+                            continue;
+                        }
+                        $pdfS3UrlsData      = $pdfServiceObj->uploadPdfToS3($pdfFilesDetails['data']);
+			echo "pdfS3UrlsData---";echo "<pre>";print_r($pdfS3UrlsData);	
+                        if($pdfS3UrlsData['gotError']){
+                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function uploadPdfToS3 have error');
+                            DB::rollBack();
+                            continue;
+                        }
+                        // $pdfS3UrlsData['pdfS3Urls'],
+			/*$CI = &get_instance();
+        		$CI->load->library('email');
+        		$CI->email->clear(TRUE);
+                        $fromSureWavesEmail = $CI->config->item('from_email');*/
+			$fromSureWavesEmail = '';
+			
+			echo "fromSureWavesEmail---".$fromSureWavesEmail;echo "<br>";
+                        $preparedMailDataForNetworks = $pdfServiceObj->getMailDataForNetwork($pdfData['data'],$fromSureWavesEmail);
+			echo "preparedMailDataForNetworks---";echo "<pre>";print_r($preparedMailDataForNetworks);
+                        if($preparedMailDataForNetworks['gotError']){
+                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function getMailDataForNetwork have error');
+                            DB::rollBack();
+                            continue;
+                        }
+
+                        $storedResponse = $pdfServiceObj->storeMailDataBeforeSending($preparedMailDataForNetworks['data'],
+                                                                    $pdfS3UrlsData['data']['pdfS3Urls'],
+                                                                    $pdfFilesDetails['data']['filepaths'],$networkRoNo );
+                        
+                        if($storedResponse['gotError']){
+                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function storeMailDataBeforeSending have error');
+                            DB::rollBack();
+                            continue;
+                        }
+
+                        $mailResponse = $pdfServiceObj->sendPdfOverMail($preparedMailDataForNetworks['data'],$pdfFilesDetails['data']['filepaths']);
+                        if($mailResponse['gotError']){
+                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function sendPdfOverMail have error');
+                            DB::rollBack();
+                            continue;
+                        }
 
                         $statusData = array('pdf_generation_status' => 1, 'pdf_processing' => 0);
                         $featureObj->updatePdfStatusInRoApprovedNetworks($condition, $statusData);
+                        DB::commit();
                         log_message('info', 'In cron_job@generate_ro_pdfs | Updated GenerationStatus as 1 for NwId ' . print_r($nwId, True));
                     }
+                    
                 }
 
                 $this->cron_lock_manager->unlock('generate_ro_pdfs');
@@ -336,13 +393,13 @@ class Cron_job extends CI_Controller
             else{
                 log_message('info', 'In cron_job@generate_ro_pdfs | Lock is Not Acquired So Exiting');
             }
-            DB::commit();
-        }catch (QueryException $e) {
-            log_message('ERROR', 'In cron_job@generate_ro_pdfs | Rolling Back : Database query exception occurred - ' . print_r($e->getMessage(), true));
-            DB::rollBack();
+            
+        }catch (Exception $e) {
+            log_message('ERROR', 'In cron_job@generate_ro_pdfs | exception occurred - ' . print_r($e->getMessage(), true));
+            //DB::rollBack();
             log_message('DEBUG', 'In cron_job@generate_ro_pdfs | Database Rolled Back successfully!');
-	    $this->cron_lock_manager->unlock('generate_ro_pdfs');
-	    log_message('info', 'In cron_job@generate_ro_pdfs | Cron UnLocked after db rollback Exiting');
+	        $this->cron_lock_manager->unlock('generate_ro_pdfs');
+	        log_message('info', 'In cron_job@generate_ro_pdfs | Cron UnLocked after db rollback Exiting');
         }
     }
 
