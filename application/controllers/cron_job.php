@@ -324,28 +324,38 @@ class Cron_job extends CI_Controller
                             $internalRoNo, $nwId,
                             $scheduleDetailNetworkWise[$internalRoNo][$nwId],
                             $channelIDs[$nwId], $DayParts);
-
+			//echo "pdfData---";echo "<pre>";print_r($pdfData);
                         if($pdfData['gotError']){
                             DB::rollBack();
                             continue;
                         }
                         log_message('info', 'In cron_job@generate_ro_pdfs | PdfData for NwId ' . $nwId . ' => ' . print_r($pdfData, True));
                         $networkRoNo = $pdfData['data']['nw_ro_number'];
+			echo "networkRoNo----".$networkRoNo;echo "<br>";
                         $pdfFilesDetails    = $pdfServiceObj->GeneratePdf($pdfData['data']);
+			echo "pdfFilesDetails---"; echo "<pre>";print_r($pdfFilesDetails);
                         if($pdfFilesDetails['gotError']){
                             log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function as GeneratePdf have error');
                             DB::rollBack();
                             continue;
                         }
                         $pdfS3UrlsData      = $pdfServiceObj->uploadPdfToS3($pdfFilesDetails['data']);
+			echo "pdfS3UrlsData---";echo "<pre>";print_r($pdfS3UrlsData);	
                         if($pdfS3UrlsData['gotError']){
                             log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function uploadPdfToS3 have error');
                             DB::rollBack();
                             continue;
                         }
                         // $pdfS3UrlsData['pdfS3Urls'],
-                        $fromSureWavesEmail = $this->CI->config->item('from_email');
+			/*$CI = &get_instance();
+        		$CI->load->library('email');
+        		$CI->email->clear(TRUE);
+                        $fromSureWavesEmail = $CI->config->item('from_email');*/
+			$fromSureWavesEmail = '';
+			
+			echo "fromSureWavesEmail---".$fromSureWavesEmail;echo "<br>";
                         $preparedMailDataForNetworks = $pdfServiceObj->getMailDataForNetwork($pdfData['data'],$fromSureWavesEmail);
+			echo "preparedMailDataForNetworks---";echo "<pre>";print_r($preparedMailDataForNetworks);
                         if($preparedMailDataForNetworks['gotError']){
                             log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function getMailDataForNetwork have error');
                             DB::rollBack();
@@ -357,14 +367,14 @@ class Cron_job extends CI_Controller
                                                                     $pdfFilesDetails['data']['filepaths'],$networkRoNo );
                         
                         if($storedResponse['gotError']){
-                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function sendPdfOverMail have error');
+                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function storeMailDataBeforeSending have error');
                             DB::rollBack();
                             continue;
                         }
 
                         $mailResponse = $pdfServiceObj->sendPdfOverMail($preparedMailDataForNetworks['data'],$pdfFilesDetails['data']['filepaths']);
                         if($mailResponse['gotError']){
-                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function storeMailDataBeforeSending have error');
+                            log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function sendPdfOverMail have error');
                             DB::rollBack();
                             continue;
                         }

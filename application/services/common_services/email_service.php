@@ -96,10 +96,11 @@ class EmailService
 
         if ($CI->email->send()) {
             log_message('INFO', 'In EmailService@sendMail | Mail sent successfully!');
-	    log_message('info', 'In EmailService@sendMailPrintingMailLog - ' . $CI->email->print_debugger());
+	    //log_message('info', 'In EmailService@sendMailPrintingMailLog - ' . $CI->email->print_debugger());
             return true;
         }
-        log_message('INFO', 'In EmailService@sendMail | Mail not sent');
+	
+        log_message('ERROR', 'In EmailService@sendMail | Mail not sent . The reason is-' . $CI->email->print_debugger() );
         return false;
     }
 }

@@ -208,11 +208,21 @@ ORDER by sacsd.DATE ASC , sacsd.campaign_id ASC ,sacsd.enterprise_id asc;");
         try{
             log_message('DEBUG', 'In GenerateRoPdfFeature@checkNetworkRoExistAgainstInternalRo | Entered with arguments ' . print_r(func_get_args(), True));
             $condition = array(array('internal_ro_number', $internalRo));
-            $result = $this->RoNetworkRoReportDetails->getColumnsWhere($condition, array('*'));
-
+            
+	    //DB::enableQueryLog();
+	    //$result = $this->RoNetworkRoReportDetails->getColumnsWhere($condition, array('*'));
+	    
+	    $result = DB::select("select * from ro_network_ro_report_details where internal_ro_number = '".$internalRo."'");
+	    $result = json_decode(json_encode($result), true);
+	    
+	    //$quries = DB::getQueryLog();
+	    //var_dump($quries);
             log_message('DEBUG', 'In GenerateRoPdfFeature@checkNetworkRoExistAgainstInternalRo | Before exiting , the db query values are'. print_r($result , TRUE));
-            if ($result->count() > 0) {
+           /* if ($result->count() > 0) {
                 return $result->toArray();
+            }*/
+	    if (count($result) > 0) {
+            	return $result;
             }
             return array();
             
@@ -265,7 +275,10 @@ ORDER by sacsd.DATE ASC , sacsd.campaign_id ASC ,sacsd.enterprise_id asc;");
     }
     public function getAllRoCancelInvoiceData($whereData){
         log_message('DEBUG', 'In GenerateRoPdfFeature@getAllRoCancelInvoiceData |  Entered with arguments ' . print_r(func_get_args(), True));
-        $result = $this->RoCancelInvoice->getColumnsWhere($whereData, array('*'));
+        //DB::enableQueryLog();
+	$result = $this->RoCancelInvoice->getColumnsWhere($whereData, array('*'));
+	//$query = DB::getQueryLog();
+	//var_dump($query);
         log_message('DEBUG', 'In GenerateRoPdfFeature@getAllRoCancelInvoiceData | Before exiting , the db query values are'. print_r($result , TRUE));
         if ($result->count() > 0) {
             return $result->toArray();

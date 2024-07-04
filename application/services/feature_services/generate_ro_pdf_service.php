@@ -74,7 +74,7 @@ class GenerateRoPdfService
      */
     public function GeneratePdf($data)
     {
-
+	echo "in GeneratePdf fun--";//echo "<pre>";print_r($data);
         log_message('info','In GenerateRoPdfService@GeneratePdf | Entered');
         try{
             $html = $this->getHtml($data);
@@ -137,6 +137,7 @@ class GenerateRoPdfService
      */
     public function getHtml($data)
     {
+	echo "in getHtml fun--";//echo "<pre>";print_r($data);
         try{
 
         
@@ -308,8 +309,8 @@ class GenerateRoPdfService
 
             foreach ($content_download_link as $value) {
                 $html .= "<tr>";
-                $html .= "<td colspan='2' align='left' style='padding-right: 20px;'>" . $value['channel_name'] . "</td>";
-                $html .= "<td align='right' style='padding-left: 20px'>" . $value['file_location'] . "</td>";
+                $html .= "<td colspan='2' align='left' style='padding-right: 20px;' width='50%'>" . $value['channel_name'] . "</td>";
+                $html .= "<td align='left' style='padding-left: 20px' width='50%'><a href='".$value['file_location']."' target='_blank'>" . $value['file_location'] . "</a></td>";
                 $html .= "</tr>";
             }
             $html .= "</table>";
@@ -471,6 +472,7 @@ class GenerateRoPdfService
     }
     public function convertCancelDetailsIntoHtml($data)
     {
+	echo "in convertCancelDetailsIntoHtml fun--";echo "<pre>";print_r($data);
         log_message('info', 'In GenerateRoPdfService@convertCancelDetailsIntoHtml | Entered with arguments => ' . print_r(func_get_args(), True));
 
         $html =
@@ -634,6 +636,7 @@ class GenerateRoPdfService
 
     }
     public function uploadPdfToS3($pdfFilesDetails){
+	echo "in uploadPdfToS3 fun---";echo"<pre>";print_r($pdfFilesDetails);
         log_message('info','In GenerateRoPdfService@uploadPdfToS3 | Entered');
         log_message('info','In GenerateRoPdfService@uploadPdfToS3 | printing the params to function' . print_r($pdfFilesDetails, True));
         $pdfS3Urls = array();
@@ -664,6 +667,7 @@ class GenerateRoPdfService
         }
     }
     public function getMailDataForNetwork($data,$fromEmail){
+	echo "in getMailDataForNetwork fun---";//echo"data";echo "<pre>";print_r($data);echo "fromEmail--";echo $fromEmail;
         $revision_no = '';
         $subjectCancelInvoice = '';
         $networkRoNumber = $data['nw_ro_number'];
@@ -954,7 +958,7 @@ class GenerateRoPdfService
             $networkRoReportDetails['net_amount_payable'] = round(($roDetail['Net_Amount'] * ($roDetail['customer_share']) / 100));
             $networkRoReportDetails['release_date'] = date("Y-m-d H:i:s");
             //$check = $this->featureObj->checkNetworkRoExist($networkRoNo);
-            if ($netWorkRoExistInDB) {
+            if (!$netWorkRoExistInDB) {
                 $networkRoReportDetails['network_ro_number'] = $networkRoNo;
                 $networkRoReportDetails['customer_name'] = $customerName;
                 $networkRoReportDetails['customer_ro_number'] = $marketCampaignPeriod['customer_ro'];
@@ -1021,7 +1025,9 @@ class GenerateRoPdfService
             log_message('info', 'In GenerateRoPdfService@sendToViewWithCancelNWInvoiceDetails | Entered with arguments => ' . print_r(func_get_args(), True));
             //$whereCancelInvoiceArray = array(array('network_ro_number' => $nw_ro_number, 'pdf_processing' => 0));
 	     $whereCancelInvoiceArray = array('network_ro_number' => $nw_ro_number, 'pdf_processing' => 0);
+	    echo "in sendToViewWithCancelNWInvoiceDetails fun--- printing whereCancelInvoiceArray array ---";echo "<pre>";print_r($whereCancelInvoiceArray);
             $cancelInvoiceNetworkDetails = $this->featureObj->getAllRoCancelInvoiceData($whereCancelInvoiceArray);
+	    echo "in sendToViewWithCancelNWInvoiceDetails printing variable cancelInvoiceNetworkDetails---<pre>";print_r($cancelInvoiceNetworkDetails);
             log_message('info', 'ro_cancel_invoice printing whereCancelInvoiceArray array - ' . print_r($whereCancelInvoiceArray, TRUE));
             log_message('info', 'ro_cancel_invoice printing cancelInvoiceNetworkDetails array - ' . print_r($cancelInvoiceNetworkDetails, TRUE));
             $htmlDataWithStatus = array('status' => false, 'html' => null, 'network_ro_number' => null, 'revision' => null);
@@ -1040,28 +1046,32 @@ class GenerateRoPdfService
     
     public function get_nw_seq_no($internal_ro_number, $customer_name)
     {
+	echo "in get_nw_seq_no fun---printing function parmaters";echo "<pre>";print_r(func_get_args());
         try{
             log_message('info', 'In GenerateRoPdfService@get_nw_seq_no | Entered with arguments => ' . print_r(func_get_args(), True));
             $networkRoNumber = '';
             $count = 1;
             $enrtyInDB = false;
             $networkRoDetails = $this->featureObj->checkNetworkRoExistAgainstInternalRo($internal_ro_number);
-            
+            echo 'in get_nw_seq_no fun--- printing networkRoDetails array';echo "<pre>";print_r($networkRoDetails);
             if (count($networkRoDetails) > 0) {
                 foreach($networkRoDetails as $eachNetwork){
                     $count++;
+		    echo "in get_nw_seq_no fun--- printing eachNetwork array ";echo "<pre>";print_r($eachNetwork);
+		    echo "<br>";echo strtolower($eachNetwork['customer_name']).'---'.strtolower($customer_name);
                     if(strtolower($eachNetwork['customer_name']) === strtolower($customer_name)){
+			echo "<br> entry in db <br>";
                         $networkRoNumber = $eachNetwork['network_ro_number'];
                         $enrtyInDB = true;
                         break;
                     }
                 }
             }
-            if($networkRoNumber === ''){
+            if($networkRoNumber == ''){
                 $count = sprintf('%03d', $count);
-                $networkRoDetails = $internal_ro_number . "/" . $count . "/" . $customer_name;
+                $networkRoNumber = $internal_ro_number . "/" . $count . "/" . $customer_name;
             }
-            $ret = array('networkRoNo'=>$networkRoDetails, 'enrtyInDB'=> $enrtyInDB);
+            $ret = array('networkRoNo'=>$networkRoNumber, 'enrtyInDB'=> $enrtyInDB);
             log_message('info', 'In GenerateRoPdfService@get_nw_seq_no | Before exiting , return values are'. print_r($ret , TRUE));
             return $ret;
         }catch(\Exception $e){
@@ -1086,7 +1096,7 @@ class GenerateRoPdfService
             }
             log_message('info', 'In GenerateRoPdfService@storeMailDataBeforeSending | File paths are => ' . print_r($allFileStr, True));
             $user_data = array(
-                'emails_list' => serialize($mailData['emails_list']),
+                'emails_list' => serialize($mailData['emailList']),
                 'text' => $mailData['text'],
                 'subject' => serialize($mailData['subject']),
                 'message' => serialize($mailData['mailMessage']),
@@ -1098,7 +1108,7 @@ class GenerateRoPdfService
                 'pdf_generation_date' => date('Y-m-d'),
                 'network_ro_number' => $networkRo
             );
-
+	    echo "in storeMailDataBeforeSending fun printing user_data variable---<pre>";print_r($user_data);
             $this->featureObj->insertIntoRoMailData($user_data);
             log_message('info', 'In GenerateRoPdfService@storeMailDataBeforeSending | Exiting');
             return array('gotError'=>false,'data'=>array());
@@ -1109,6 +1119,7 @@ class GenerateRoPdfService
         }
     }
     public function sendPdfOverMail($mailData,$actualPdfFilePaths){
+	echo "in sendPdfOverMail fun--";echo "<pre>";echo "mailData array";print_r($mailData);echo "actualPdfFilePaths";print_r($actualPdfFilePaths);
         log_message('info', 'In GenerateRoPdfService@sendPdfOverMail | Entered with arguments => ' . print_r(func_get_args(), True));
         try{
             
@@ -1116,13 +1127,19 @@ class GenerateRoPdfService
             $messageKeyValues   = $mailData['mailMessage'];
             $toEmails           = $mailData['emailList'];
             $ccEmails           = $mailData['surewavesEmails'];
-            $subjectKeyValues   = array('NETWORK_RO' => $mailData['mailMessage']['OLD_NETWORK_RO']);
+            $subjectKeyValues   = array('NETWORK_RO' => $mailData['mailMessage']['NETWORK_RO']);
+	     echo "in sendPdfOverMail fun--";echo "<pre>";echo "subjectKeyValues array";print_r($subjectKeyValues);
             log_message('info', 'In GenerateRoPdfService@sendPdfOverMail | subjectKeyValues is => ' . print_r($subjectKeyValues, True));
-	    $toEmails = 'biswabijayee@surewaves.com';
-	    $ccEmails = 'nilanjan@surewaves.com';
+/*	    $toEmails = 'biswabijayee@surewaves.com';
+	    $ccEmails = 'biswabijayee@surewaves.com';//'nilanjan@surewaves.com,sony@surewaves.com,vivek@surewaves.com';
+*/	    
             $emailObj           = new EmailService($toEmails,$ccEmails);
-            $emailObj->sendMail($emailTextKey, $subjectKeyValues, $messageKeyValues, $actualPdfFilePaths);
-            log_message('info', 'In GenerateRoPdfService@sendPdfOverMail | Exiting');
+            $status 		= $emailObj->sendMail($emailTextKey, $subjectKeyValues, $messageKeyValues, $actualPdfFilePaths);
+            if(!$status){
+		log_message('ERROR', 'In GenerateRoPdfService@sendPdfOverMail | Error while sending mail');
+		return array('gotError'=>true,'data'=>array());
+	    }
+	    log_message('info', 'In GenerateRoPdfService@sendPdfOverMail | Exiting');
             return array('gotError'=>false,'data'=>array());
         }catch(\Exception $e){
             log_message('error', 'In GenerateRoPdfService@sendPdfOverMail | At line number '.__LINE__.' Exception error is '.print_r($e->getMessage(),True));
