@@ -160,7 +160,16 @@ define('MAKE_GOOD_TYPE',
  * Ravishankar Singh 2019-11-21
  * How many days later an APPROVED CHANNEL will be cancelled from current date
  */
+
 define('DATE_OF_CHANNEL_CANCEL', date("Y-m-d", strtotime("+2 day")));
+define('THIRD_PARTY_AWS_URL', 'https://ehs.mediagrid.surewaves.com');
+define('SOURCE_OF_API_CALL' , 'Easy Ro');
+define('FROM_EMAIL' , serialize(array(
+    'from_email_name' => 'SureWaves Support',
+    'from_email_id' => 'RO-support@surewaves.com'
+)));
+
+
 
 /* End of file constants.php */
 /* Location: ./application/config/constants.php */

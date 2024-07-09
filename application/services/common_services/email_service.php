@@ -6,11 +6,13 @@ class EmailService
     private $to;
     private $cc;
 
-    public function __construct($to, $cc)
+    public function __construct($to = '', $cc = '', $bcc = '')
     {
         log_message('DEBUG', 'In EmailService@constructor | EmailService object created');
-        $this->to = $to;
-        $this->cc = $cc;
+        $this->to   = $to;
+        $this->cc   = $cc;
+        $this->bcc  = $bcc;
+
     }
 
     /**
@@ -102,5 +104,63 @@ class EmailService
 	
         log_message('ERROR', 'In EmailService@sendMail | Mail not sent . The reason is-' . $CI->email->print_debugger() );
         return false;
+    }
+    public function getDefaultFromEmailSettings(){
+        return unserialize(FROM_EMAIL); 
+    }
+    public function sendMailOverApi($mailTemplateName, $placeHoldersKeyValuePair, $files = array(), $subject = '', $fromEmailId = '', $fromEmailName = '')
+    {
+        log_message('info', 'In EmailService@sendMailOverApi | Entered with arguments => ' . print_r(func_get_args(), True));
+        $target_url = THIRD_PARTY_AWS_URL.'/api/EmailService/GenerateAndSendEmail';
+   
+        $paramObj = new stdClass();
+
+        // Add properties to the object
+        $paramObj->source       = SOURCE_OF_API_CALL;
+        $paramObj->templateName = $mailTemplateName;
+        $paramObj->attachment   = $files;
+       
+        if(empty($fromEmailId)){
+            $retFromEmailSettings = $this->getDefaultFromEmailSettings();
+            $fromEmailId    = $retFromEmailSettings['from_email_id'];
+            $fromEmailName  = $retFromEmailSettings['from_email_name'];
+        }
+        $paramObj->mail             = new stdClass();
+        $paramObj->mail->from       = $fromEmailId;
+        $paramObj->mail->fromName   = $fromEmailName;
+        $paramObj->mail->to         = $this->to;
+        $paramObj->mail->cc         = $this->cc;
+        $paramObj->mail->bcc        = $this->bcc;
+        $paramObj->mail->subject    = $subject;
+        
+        $paramObj->placeholders = new stdClass();
+        foreach($placeHoldersKeyValuePair as $key => $value){
+            $paramObj->placeholders->$key = $value;
+        }
+        //$paramObj->placeholders = json_encode($placeHoldersKeyValuePair,JSON_FORCE_OBJECT);
+
+
+    // Prepare the POST data
+        $postData = http_build_query(array('data' => json_encode($paramObj)));
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,$target_url);
+        curl_setopt($ch, CURLOPT_POST,1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        $result=curl_exec ($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close ($ch);
+        if($httpcode === 400 || $httpcode === 500){
+            log_message('ERROR', 'In EmailService@sendMailOverApi | Mail not sent . The reason is - ' . print_r($result, true));
+            return false;
+        }
+        log_message('INFO', 'In EmailService@sendMailOverApi | Mail sent successfully with message - '.print_r($result, true));
+        return true;
+        //echo $result;
+
+
+        
+	
+
     }
 }

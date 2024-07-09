@@ -1,13 +1,14 @@
 <?php
 
 use application\feature_dal\GenerateRoPdfFeature;
+use application\services\common_services\EmailService;
 use application\services\feature_services\GenerateRoPdfService;
 use Illuminate\Database\Capsule\Manager as DB;
 //use Illuminate\Database\QueryException;
 
 include_once APPPATH . 'feature_dal/generate_ro_pdf_feature.php';
 include_once APPPATH . 'services/feature_services/generate_ro_pdf_service.php';
-
+include_once APPPATH . 'services/common_services//email_service.php';
 
 class Cron_job extends CI_Controller
 {
@@ -27,6 +28,7 @@ class Cron_job extends CI_Controller
             $this->output->enable_profiler("true");
         }
         $this->CI = &get_instance();
+        
     }
 
     public function try_pdf()
@@ -988,9 +990,9 @@ class Cron_job extends CI_Controller
         log_message('INFO', 'In cron_job@generateMisReport | User Type and Given Date- ' . print_r(array($userType, $givenDate), true));
 
         $this->db->trans_start();
-        $this->mg_model->generateFCTMisReport($givenDate, $userType);
+        //$this->mg_model->generateFCTMisReport($givenDate, $userType);
         if ($userType == 0) {
-            $this->mg_model->generateNonFCTMisReport($givenDate, $userType);
+            //$this->mg_model->generateNonFCTMisReport($givenDate, $userType);
         }
         $this->db->trans_complete();
 
@@ -1134,26 +1136,23 @@ class Cron_job extends CI_Controller
         $current_month = date("M-y", strtotime($givenDate));
         $month = date("F", strtotime($givenDate));
         $current_month_year = date("M-Y", strtotime($givenDate));
-
-        mail_send_v1($emailIds,
-            "mis_month_report",
-            array('MONTH' => $current_month),
-            array(
-                'MONTH' => $month,
-                'CURRENT_MONTH_YEAR' => $current_month_year,
-                'SUMMARY_MONTH' => $summaryForMonth,
-                'MONTHLY_DATA' => $monthlyFct,
-                'MONTHLY_NON_FCT_DATA' => $monthlyNonFct,
-                'TODAYS_DATE' => date("d-M-Y"),
-                'FINANCIAL_YEAR_DATA' => $finacialYearFct,
-                'FINANCIAL_YEAR_NON_FCT_DATA' => $financialYearNonFct,
-                'FINANCIAL_YEAR_TOTAL_DATA' => $financialTotalValue
-            ),
-            '',
-            '',
-            '',
-            ''
+        $mailPlaceHolderValues = array(
+            'CURRENT_MONTH' => $current_month,
+            'MONTH' => $month,
+            'CURRENT_MONTH_YEAR' => $current_month_year,
+            'SUMMARY_MONTH' => $summaryForMonth,
+            'MONTHLY_DATA' => $monthlyFct,
+            'MONTHLY_NON_FCT_DATA' => $monthlyNonFct,
+            'TODAYS_DATE' => date("d-M-Y"),
+            'FINANCIAL_YEAR_DATA' => $finacialYearFct,
+            'FINANCIAL_YEAR_NON_FCT_DATA' => $financialYearNonFct,
+            'FINANCIAL_YEAR_TOTAL_DATA' => $financialTotalValue
         );
+        log_message('INFO', 'In cron_job@mailSendForMis | calling the email service with following parameters - '.print_r($mailPlaceHolderValues, true));
+        $emailServiceObj = new EmailService($emailIds);
+        $status = $emailServiceObj->sendMailOverApi('mis_month_report.html',$mailPlaceHolderValues);
+        log_message('INFO', 'In cron_job@mailSendForMis | printing the response of email service '.print_r($status, true));
+
     }
 
     public function mailSendForMisInternationally($givenDate, $emailIds, $summaryForMonth, $monthlyFct, $monthlyNonFct, $finacialYearFct, $financialYearNonFct, $financialTotalValue, $financialYearInternationalFct, $financialYearInternationalNonFct)
@@ -1162,10 +1161,8 @@ class Cron_job extends CI_Controller
         $month = date("F", strtotime($givenDate));
         $current_month_year = date("M-Y", strtotime($givenDate));
 
-        mail_send_v1($emailIds,
-            "mis_month_report_international",
-            array('MONTH' => $current_month),
-            array(
+        $mailPlaceHolderValues = array(
+                'CURRENT_MONTH' => $current_month,
                 'MONTH' => $month,
                 'CURRENT_MONTH_YEAR' => $current_month_year,
                 'SUMMARY_MONTH' => $summaryForMonth,
@@ -1177,12 +1174,11 @@ class Cron_job extends CI_Controller
                 'FINANCIAL_YEAR_TOTAL_DATA' => $financialTotalValue,
                 'FINANCIAL_YEAR_DATA_INTERNATIONAL' => $financialYearInternationalFct,
                 'FINANCIAL_YEAR_NON_FCT_DATA_INTERNATIONAL' => $financialYearInternationalNonFct
-            ),
-            '',
-            '',
-            '',
-            ''
-        );
+            );
+        log_message('INFO', 'In cron_job@mailSendForMisInternationally | calling the email service with following parameters - '.print_r($mailPlaceHolderValues, true));
+        $emailServiceObj = new EmailService($emailIds);
+        $status = $emailServiceObj->sendMailOverApi('mis_month_report_international.html',$mailPlaceHolderValues);
+        log_message('INFO', 'In cron_job@mailSendForMisInternationally | printing the response of email service '.print_r($status, true));
     }
 
     public function current_month_report_advance($givenDate = NULL)
