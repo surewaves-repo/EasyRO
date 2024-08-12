@@ -1165,7 +1165,7 @@ class Cron_job extends CI_Controller
                 'CURRENT_MONTH' => $current_month,
                 'MONTH' => $month,
                 'CURRENT_MONTH_YEAR' => $current_month_year,
-                'SUMMARY_MONTH' => $summaryForMonth,
+                'SUMMARY_MONTH' => $summaryForMonth,    
                 'MONTHLY_DATA' => $monthlyFct,
                 'MONTHLY_NON_FCT_DATA' => $monthlyNonFct,
                 'TODAYS_DATE' => date("d-M-Y"),
@@ -3206,7 +3206,7 @@ class Cron_job extends CI_Controller
         $deployNotPinging = $this->mg_model->deployedAndNotPinging($from_number_of_days, $to_number_of_days);
 
         //echo $channelSummary."--".$onlineChannelSummary;exit;
-        mail_send_v1($to_mail_id,
+       /* mail_send_v1($to_mail_id,
             $mail_key,
             array('TODAYS_DATE' => date('Y-m-d'), 'DURATION' => $duration),
             array(
@@ -3228,7 +3228,28 @@ class Cron_job extends CI_Controller
             $cc_mail_id,
             '',
             ''
+        );*/
+        $mailPlaceHolderValues = array(
+            'TODAYS_DATE' => date('Y-m-d'),
+            'DURATION' => $duration,
+            'CHANNELS_SUMMARY' => $channelSummary,
+            'ONLINE_CHANNELS_SUMMARY' => $onlineChannelSummary,
+
+            'ONLINE_CHANNEL_DATA_GREATER_THAN_95' => $OnlinePerformanceReportGreaterThanNinetyFive,
+            'ONLINE_CHANNEL_DATA_GREATER_THAN_85' => $OnlinePerformanceReportGreaterThanEightyFive,
+            'ONLINE_CHANNEL_DATA_GREATER_THAN_75' => $OnlinePerformanceReportGreaterThanSeventyFive,
+            'ONLINE_CHANNEL_DATA_GREATER_THAN_60' => $OnlinePerformanceReportGreaterThanSixty,
+            'ONLINE_CHANNEL_DATA_GREATER_THAN_40' => $OnlinePerformanceReportGreaterThanFourty,
+            'ONLINE_CHANNEL_DATA_LESS_THAN_40' => $OnlinePerformanceReportLessThanFourty,
+
+            //'ONLINE_CHANNEL_DATA' => $OnlinePerformanceReport,
+            'OFFLINE_CHANNEL_DATA' => $OfflinePerformanceReport,
+            'DEPLOYED_NOT_PINGING' => $deployNotPinging
         );
+        log_message('INFO', 'In cron_job@generateChannelSummaryReport | calling the email service with following parameters - '.print_r($mailPlaceHolderValues, true));
+        $emailServiceObj = new EmailService($to_mail_id,$cc_mail_id);
+        $status = $emailServiceObj->sendMailOverApi($mail_key.'.html',$mailPlaceHolderValues);
+        log_message('INFO', 'In cron_job@generateChannelSummaryReport | printing the response of email service '.print_r($status, true));
     }
 
     public function getMailTemplateId($mail_type)
