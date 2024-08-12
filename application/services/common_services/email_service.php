@@ -111,56 +111,67 @@ class EmailService
     public function sendMailOverApi($mailTemplateName, $placeHoldersKeyValuePair, $files = array(), $subject = '', $fromEmailId = '', $fromEmailName = '')
     {
         log_message('info', 'In EmailService@sendMailOverApi | Entered with arguments => ' . print_r(func_get_args(), True));
-        $target_url = THIRD_PARTY_AWS_URL.'/api/EmailService/GenerateAndSendEmail';
-   
-        $paramObj = new stdClass();
-
+      	$target_url = THIRD_PARTY_AWS_URL.'/api/EmailService/GenerateAndSendEmail';
+  // 	$target_url = 'http://54.179.131.174:8080/api/EmailService/GenerateAndSendEmail';
+	echo $target_url;
+	//log_message('info', 'In EmailService@sendMailOverApi | the url is ' . $target_url);
+//        $paramObj = new stdClass();
+//	echo "hey there";
         // Add properties to the object
-        $paramObj->source       = SOURCE_OF_API_CALL;
-        $paramObj->templateName = $mailTemplateName;
+	$paramObj = new \stdClass();
+        $paramObj->source       = SOURCE_OF_API_CALL ;
+        $paramObj->templateName = 'EasyRO/'.$mailTemplateName;
         $paramObj->attachment   = $files;
-       
+//	echo "<pre>";print_r($paramObj);       
         if(empty($fromEmailId)){
             $retFromEmailSettings = $this->getDefaultFromEmailSettings();
             $fromEmailId    = $retFromEmailSettings['from_email_id'];
             $fromEmailName  = $retFromEmailSettings['from_email_name'];
         }
-        $paramObj->mail             = new stdClass();
+	$this->to = array('biswabijayee@surewaves.com');
+	$this->cc = array('deepak.vg@surewaves.com');
+	$this->bcc = array();
+        $paramObj->mail             = new \stdClass();
         $paramObj->mail->from       = $fromEmailId;
         $paramObj->mail->fromName   = $fromEmailName;
         $paramObj->mail->to         = $this->to;
         $paramObj->mail->cc         = $this->cc;
         $paramObj->mail->bcc        = $this->bcc;
         $paramObj->mail->subject    = $subject;
-        
-        $paramObj->placeholders = new stdClass();
+//        echo "<pre>";print_r($paramObj->mail);
+        $paramObj->placeholders = new \stdClass();
         foreach($placeHoldersKeyValuePair as $key => $value){
             $paramObj->placeholders->$key = $value;
-        }
+       	}
+//	$paramObj->config = new \stdClass();
+//	$paramObj->config->isZip = '';
         //$paramObj->placeholders = json_encode($placeHoldersKeyValuePair,JSON_FORCE_OBJECT);
 
 
     // Prepare the POST data
-        $postData = http_build_query(array('data' => json_encode($paramObj)));
-
+        $postData = json_encode($paramObj);
+	echo $postData;
+	echo "<br>";
+	log_message('info', 'In EmailService@sendMailOverApi | the api url is ' . $target_url);
+	log_message('info', 'In EmailService@sendMailOverApi | the json payload is ' . $postData);
+	
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL,$target_url);
         curl_setopt($ch, CURLOPT_POST,1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+	curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true );
         $result=curl_exec ($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close ($ch);
-        if($httpcode === 400 || $httpcode === 500){
-            log_message('ERROR', 'In EmailService@sendMailOverApi | Mail not sent . The reason is - ' . print_r($result, true));
-            return false;
-        }
-        log_message('INFO', 'In EmailService@sendMailOverApi | Mail sent successfully with message - '.print_r($result, true));
-        return true;
-        //echo $result;
+	log_message('INFO', 'In EmailService@sendMailOverApi | The httpcode is - ' . print_r($httpcode, true));
+        if($httpcode === 200){
+		log_message('INFO', 'In EmailService@sendMailOverApi | Mail sent successfully with message - '.print_r($result, true));
+        	return true;
+	}else{
+		log_message('ERROR', 'In EmailService@sendMailOverApi | Mail not sent . The http code is : '. $httpcode .' The reason is - ' . print_r($result, true));			
+		return false;
+	}
 
-
-        
-	
-
-    }
+     }
 }
