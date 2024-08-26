@@ -120,7 +120,7 @@ class EmailService
         // Add properties to the object
 	$paramObj = new \stdClass();
         $paramObj->source       = SOURCE_OF_API_CALL ;
-        $paramObj->templateName = 'EasyRO/'.$mailTemplateName;
+        $paramObj->templateName = $mailTemplateName;
         $paramObj->attachment   = $files;
 //	echo "<pre>";print_r($paramObj);       
         if(empty($fromEmailId)){

@@ -3139,17 +3139,18 @@ class Cron_job extends CI_Controller
                 if (date("w", strtotime($givenDate)) == 1) {
                     $from_number_of_days = "-1";
                     //$to_number_of_days = "-31" ;
-                    //$mail_key = "channel_performance_monthly" ;
+                    $mail_key = "channel_performance_monthly" ;
                     //$staticEmails  	= $this->getStaticMails('channel_performance_weekly');
                     //$cc_mail_id = $cc_mail_id.','.$staticEmails;
                     $to_number_of_days = "-7";
-                    $mail_key = "channel_performance_weekly";
+                    //$mail_key = "channel_performance_weekly";
                     $duration = 'Weekly';
                     //$this->generateChannelSummaryReport($from_number_of_days,$to_number_of_days,$to_mail_id,$cc_mail_id,$mail_key) ;                    
                 } else {
                     $from_number_of_days = "-1";
                     $to_number_of_days = "-1";
-                    $mail_key = "channel_performance_weekly";
+                    //$mail_key = "channel_performance_weekly";
+			$mail_key = "channel_performance_monthly" ;
                     //$this->generateChannelSummaryReport($from_number_of_days,$to_number_of_days,$to_mail_id,$cc_mail_id,$mail_key) ;
                 }
                 $this->generateChannelSummaryReport($from_number_of_days, $to_number_of_days, $to_mail_id, $cc_mail_id, $mail_key, $duration);

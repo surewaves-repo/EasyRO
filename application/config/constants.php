@@ -163,7 +163,7 @@ define('MAKE_GOOD_TYPE',
 
 define('DATE_OF_CHANNEL_CANCEL', date("Y-m-d", strtotime("+2 day")));
 define('THIRD_PARTY_AWS_URL', 'https://ehs.mediagrid.surewaves.com');
-define('SOURCE_OF_API_CALL' , 'Easy Ro');
+define('SOURCE_OF_API_CALL' , 'EasyRO');
 define('FROM_EMAIL' , serialize(array(
     'from_email_name' => 'SureWaves Support',
     'from_email_id' => 'RO-support@surewaves.com'
