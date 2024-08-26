@@ -1132,9 +1132,12 @@ class GenerateRoPdfService
             log_message('info', 'In GenerateRoPdfService@sendPdfOverMail | subjectKeyValues is => ' . print_r($subjectKeyValues, True));
 /*	    $toEmails = 'biswabijayee@surewaves.com';
 	    $ccEmails = 'biswabijayee@surewaves.com';//'nilanjan@surewaves.com,sony@surewaves.com,vivek@surewaves.com';
+            
 */	    
+            $mailPlaceHolderValues  = array_merge($messageKeyValues, $subjectKeyValues);
+            $attachments            = explode(",",$actualPdfFilePaths);
             $emailObj           = new EmailService($toEmails,$ccEmails);
-            $status 		= $emailObj->sendMail($emailTextKey, $subjectKeyValues, $messageKeyValues, $actualPdfFilePaths);
+            $status 		= $emailObj->sendMailOverApi($emailTextKey.'.html', $mailPlaceHolderValues,$attachments);
             if(!$status){
 		log_message('ERROR', 'In GenerateRoPdfService@sendPdfOverMail | Error while sending mail');
 		return array('gotError'=>true,'data'=>array());

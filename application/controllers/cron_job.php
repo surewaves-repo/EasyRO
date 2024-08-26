@@ -374,7 +374,7 @@ class Cron_job extends CI_Controller
                             continue;
                         }
 
-                        $mailResponse = $pdfServiceObj->sendPdfOverMail($preparedMailDataForNetworks['data'],$pdfFilesDetails['data']['filepaths']);
+                        $mailResponse = $pdfServiceObj->sendPdfOverMail($preparedMailDataForNetworks['data'],$pdfS3UrlsData['data']['pdfS3Urls']);
                         if($mailResponse['gotError']){
                             log_message('info', 'In cron_job@generate_ro_pdfs | Rolling back as function sendPdfOverMail have error');
                             DB::rollBack();
