@@ -248,22 +248,22 @@ class postApprovalRoService
                 $approvedBy = $loggedIn[0]['user_name'];
 
                 $toUser = "raj@surewaves.com";
-                $ccUser = "";
-                $emailObject = new EmailService($toUser, $ccUser);
-                $mailSent = $emailObject->sendMail(
-                    "ceo_notify_net",
-                    array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
-                    array(
-                        'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
-                        'AM_NAME' => $submittedBy[0]['user_name'],
-                        'APPROVED_BY' => $approvedBy,
-                        'GROSS' => $roDetail[0]['gross'],
-                        'MARKET' => $roDetail[0]['market'],
-                        'JUSTIFICATION_FOR_APPROVAL' => $justificationForApproval,
-                        'CORRECTIVE_ACTION_PLAN' => $correctiveActionPlan,
-                        'NET_CONTRIBUTION' => $roExternalRoReportDetailsData['net_contribution_amount_per']
-                    ),
-                    ''
+                //$ccUser = "";
+                $mailTemplateFileName = "ceo_notify_net.html";
+                $mailPlaceHolderValues  = array(
+                    'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
+                    'AM_NAME' => $submittedBy[0]['user_name'],
+                    'APPROVED_BY' => $approvedBy,
+                    'GROSS' => $roDetail[0]['gross'],
+                    'MARKET' => $roDetail[0]['market'],
+                    'JUSTIFICATION_FOR_APPROVAL' => $justificationForApproval,
+                    'CORRECTIVE_ACTION_PLAN' => $correctiveActionPlan,
+                    'NET_CONTRIBUTION' => $roExternalRoReportDetailsData['net_contribution_amount_per']
+                );
+                $emailObject = new EmailService($toUser);
+                $mailSent = $emailObject->sendMailOverApi(
+                    $mailTemplateFileName,
+                    $mailPlaceHolderValues
                 );
                 if (!$mailSent) {
                     log_message('INFO', 'Mail was not sent to CEO, Operation ');
@@ -333,10 +333,10 @@ class postApprovalRoService
         log_message('info', 'In postApprovalRoService@approvalMailToSchedulerAndOperation | StartDate => ' . print_r($startDate, True));
         log_message('info', 'In postApprovalRoService@approvalMailToSchedulerAndOperation | EndDate => ' . print_r($endDate, True));
 
-        $text = "approval_alert";
-        $subject = array('EXTERNAL_RO' => $customerRoNo);
-        $file = '';
-        $message = array(
+        $mailTemplateFileName = "approval_alert.html";
+        //$subject = array('EXTERNAL_RO' => $customerRoNo);
+        //$file = '';
+        $mailPlaceHolderValues   = array(
             'EXTERNAL_RO' => $customerRoNo,
             'INTERNAL_RO' => $internalRoNo,
             'NETWORK_NAME' => $networkNames,
@@ -354,11 +354,9 @@ class postApprovalRoService
         //log_message("INFO",'In postApprovalRoService@approvalMailToSchedulerAndOperation | All CC Email IDs => '.print_r($userEmailIds, True));
 
         $emailObject = new EmailService($loggedIn[0]['user_email'], $userEmailIds);
-        $mailSent = $emailObject->sendMail(
-            $text,
-            $subject,
-            $message,
-            $file
+        $mailSent = $emailObject->sendMailOverApi(
+            $mailTemplateFileName,
+            $mailPlaceHolderValues
         );
         if (!$mailSent) {
             log_message('INFO', 'In postApprovalRoService@approvalMailToSchedulerAndOperation | Mail was not sent to Scheduler, Operation ');
@@ -393,11 +391,11 @@ class postApprovalRoService
         }
         $userAdminEmails = implode(",", $userAdminEmails);
 
-        $text_admin = "approval_alert_bh";
+        $mailTemplateFileName = "approval_alert_bh.html";
         $htmlTable = $this->networkAndTotalPayoutHtmlTable($totalPayoutNetworkWise);
-        $subject = array('EXTERNAL_RO' => $customerRoNo);
-        $file = '';
-        $message = array(
+        //$subject = array('EXTERNAL_RO' => $customerRoNo);
+       // $file = '';
+        $mailPlaceHolderValues = array(
             'EXTERNAL_RO' => $customerRoNo,
             'INTERNAL_RO' => $internalRoNo,
             'NETWORK_NAME' => $networkNames,
@@ -413,7 +411,7 @@ class postApprovalRoService
             'SUREWAVES_REVENUE' => $roExternalRoReportDetailsData['net_revenue'],
             'TABLE_WITH_DATA' => $htmlTable
         );
-
+        
         log_message('info','In postApprovalRoService@approvalMailToBHAndCoo | Mail message for BH,COO is '.print_r($message,True));
 
         //Added sw support email
@@ -421,11 +419,9 @@ class postApprovalRoService
         //log_message("INFO",'In postApprovalRoService@approvalMailToSchedulerAndOperation | All CC Email IDs => '.print_r($userAdminEmails, True));
 
         $emailObject = new EmailService($loggedIn[0]['user_email'], $userAdminEmails);
-        $mailSent = $emailObject->sendMail(
-            $text_admin,
-            $subject,
-            $message,
-            $file
+        $mailSent = $emailObject->sendMailOverApi(
+            $mailTemplateFileName,
+            $mailPlaceHolderValues
         );
         if (!$mailSent) {
             log_message('INFO', 'In postApprovalRoService@approvalMailToBHAndCoo | Mail was not sent to Scheduler, Operation ');

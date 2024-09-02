@@ -1137,7 +1137,7 @@ class GenerateRoPdfService
             $mailPlaceHolderValues  = array_merge($messageKeyValues, $subjectKeyValues);
             $attachments            = explode(",",$actualPdfFilePaths);
             $emailObj           = new EmailService($toEmails,$ccEmails);
-            $status 		= $emailObj->sendMailOverApi($emailTextKey.'.html', $mailPlaceHolderValues,$attachments);
+            $status 		= $emailObj->sendMailOverApi($emailTextKey.'.html', $mailPlaceHolderValues, $attachments);
             if(!$status){
 		log_message('ERROR', 'In GenerateRoPdfService@sendPdfOverMail | Error while sending mail');
 		return array('gotError'=>true,'data'=>array());

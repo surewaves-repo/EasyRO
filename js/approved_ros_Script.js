@@ -89,10 +89,10 @@ $("document").ready(function() {
         alert(data.Message);
         $("#optionModal").modal("hide");
       },
-      error: function() {
+      error: function(data) {
         $("#loader_background").css("display", "none");
         $("#loader_spin").css("display", "none");
-        alert("could not cancel market");
+        alert(data.Message);
         $("#req_market_can_market").prop("disabled", false);
       }
     });

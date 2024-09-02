@@ -104,6 +104,7 @@ class UpdateExtRoService
             $RoFilePath = $this->fileUploadForRo($userId);
             if ($RoFilePath == false) {
                 log_message('INFO', 'In UpdateExtRoService@UpdateExtRo | RO Attachment not uploaded. Rolling back database');
+                $this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
                 return array('Status' => 'fail', 'Message' => 'RO Attachment Upload Failed!', 'Data' => array());
             }
         } else {
@@ -160,27 +161,19 @@ class UpdateExtRoService
             $this->createExtRoFeatureObj->updateNetContributionPercent($netContributionPercent, $extRoId);
             // ======================  //
 
+           /* This code was commented  by Biswa on 28th Aug 2024 and will work if files are locally present rather than s3.
             $pdfAttachmentParts = pathinfo($RoFilePath);
             $clientPdfBaseName = $pdfAttachmentParts['basename'];
             $fileActualPath = $_SERVER['DOCUMENT_ROOT'] . "surewaves_easy_ro/" . 'easy_ro_temp_pdf/' . $clientPdfBaseName;
-
+            */
 
             $emailIds = $this->userEmailForRoCreation($userId, $loggedIn[0]['is_test_user']);
 
             log_message('DEBUG', 'In UpdateExtRoService@UpdateExtRo | Preparing Email data');
 
-            $whereMailData = array(
-                'ro_id' => $extRoId,
-                'mail_type' => 'submit_ro_approval',
-            );
-            $data = array(
-                'file_name' => $fileActualPath,
-                'mail_sent_date' => date('Y-m-d'),
-                'mail_sent' => 1
-            );
+            
 
-            $this->createExtRoFeatureObj->updateMailSentData($whereMailData, $data);
-
+          /*  This code was commented  by Biswa on 28th Aug 2024 and will work if files are locally present rather than s3.
             $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
             if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
                 $fileDocumentPath = "/opt/lampp/htdocs/";
@@ -202,31 +195,50 @@ class UpdateExtRoService
                 $allFiles = $actualPathLocation . $clientMailBaseName;
             }
             log_message('INFO', 'In UpdateExtRoService@UpdateExtRo | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($allFiles, true));
+            */
 
-            $mailType = unserialize(MAIL_TYPE);
-            $makeGoodType1 = unserialize(MAKE_GOOD_TYPE);
+            $mailType       = unserialize(MAIL_TYPE);
+            $makeGoodType1  = unserialize(MAKE_GOOD_TYPE);
             log_message('DEBUG', 'In UpdateExtRoService@UpdateExtRo | Calculating email type and makeGood type - ' . print_r(array('emailType' => $mailType['CREATE_EXT_RO'], 'makeGoodType' => $makeGoodType1[$makeGoodType]), true));
 
-            $emailObject = new EmailService($loggedIn[0]['user_email'], $emailIds);
-            $mailSent = $emailObject->sendMail(
-                $mailType['EDIT_EXT_RO'],
-                array('EXTERNAL_RO' => $custRo),
-                array('AM_NAME' => $loggedIn[0]['user_name'],
-                    'EXTERNAL_RO' => $custRo,
-                    'INTERNAL_RO' => $internalRoNo,
-                    'AGENCY' => $agency,
-                    'CLIENT' => $client,
-                    'BRAND' => $this->CI->input->post('txt_brand'),
-                    'MAKEGOOD_TYPE' => $makeGoodType1[$makeGoodType],
-                    'MARKET' => $market,
-                    'INSTRUCTION' => $spclInst,
-                    'START_DATE' => $campStartDate,
-                    'END_DATE' => $campEndDate
-                ),
-                $allFiles
+            
+            /**
+             * @$s3AttachedFiles variable stores the s3 file paths 
+             */
+            $s3AttachedFiles = $clientApprovalEmail .",".$RoFilePath;
+            $whereMailData   = array(
+                'ro_id' => $extRoId,
+                'mail_type' => 'submit_ro_approval',
+            );
+            $data = array(
+                'file_name' => $s3AttachedFiles,
+                'mail_sent_date' => date('Y-m-d'),
+                'mail_sent' => 1
+            );
+
+            $this->createExtRoFeatureObj->updateMailSentData($whereMailData, $data);
+            log_message('INFO', 'In UpdateExtRoService@UpdateExtRo | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($s3AttachedFiles, true));
+            $mailPlaceHolderValues  =  array('AM_NAME' => $loggedIn[0]['user_name'],
+                        'EXTERNAL_RO' => $custRo,
+                        'INTERNAL_RO' => $internalRoNo,
+                        'AGENCY' => $agency,
+                        'CLIENT' => $client,
+                        'BRAND' => $this->CI->input->post('txt_brand'),
+                        'MAKEGOOD_TYPE' => $makeGoodType1[$makeGoodType],
+                        'MARKET' => $market,
+                        'INSTRUCTION' => $spclInst,
+                        'START_DATE' => $campStartDate,
+                        'END_DATE' => $campEndDate
+                    );
+            $mailTemplateFileName = $mailType['EDIT_EXT_RO'].".html";
+            $emailObject    = new EmailService($loggedIn[0]['user_email'], $emailIds);
+            $mailSent       = $emailObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues,
+                explode(",",$s3AttachedFiles)
             );
             if (!$mailSent) {
-                log_message('INFO', 'Mail was not sent for RO - ' . $custRo);
+                log_message('INFO', 'In UpdateExtRoService@UpdateExtRo | Mail was not sent for RO - ' . $custRo);
                 $this->createExtRoFeatureObj->updateMailSentData($whereMailData, array('mail_sent' => 0));
             }
             DB::commit();
