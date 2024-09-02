@@ -127,6 +127,17 @@
         <div class="page_loader_mini" id="loader_spin" style="display:none;" ></div>
 
         <div class="block">
+        <?php if(isset($approval_error) && $approval_error != null) { ?>
+                <div style="align-items: center;width: 100%;overflow-wrap: break-word;text-align: center;">
+                    <?php  echo $approval_error; ?>
+                </div>
+        <?php } elseif(isset($validation_errors) && $validation_errors != null) { ?>
+            
+                <div style="align-items: center;width: 100%;overflow-wrap: break-word;text-align: center;">
+                    <?php  echo $validation_errors; ?>
+                </div>
+         <?php } ?>
+           
 
             <div class="block_head">
                 <div class="bheadl"></div>

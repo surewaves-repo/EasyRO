@@ -1,14 +1,17 @@
 <?php if (!defined('BASEPATH')) exit("NO Direct Script Access Allowed");
+use FFI\Exception;
 
 use application\feature_dal\MenuFeature;
 use application\services\feature_services\CreateExtRoService;
 use application\services\feature_services\UpdateExtRoService;
 use application\feature_dal\CreateExtRoFeature;
+use application\services\common_services\EmailService;
 
 include_once APPPATH . 'feature_dal/menu_feature.php';
 include_once APPPATH . 'services/feature_services/create_ext_ro_service.php';
 include_once APPPATH . 'services/feature_services/update_ext_ro_service.php';
 include_once APPPATH . 'feature_dal/create_ext_ro_feature.php';
+include_once APPPATH . 'services/common_services//email_service.php';
 
 class Account_manager extends CI_Controller
 {
@@ -941,134 +944,152 @@ class Account_manager extends CI_Controller
 
     public function post_cancelt_ro()
     {
-        $this->is_logged_in();
-        $logged_in = $this->session->userdata("logged_in_user");
+        try{
+            $this->is_logged_in();
+            $logged_in = $this->session->userdata("logged_in_user");
+            log_message('INFO', 'In account_manager@post_cancelt_ro | Entered with arguments => ' . print_r($_POST, True));
 
-        $ro_id = $this->input->post('hid_id');
-        $date_of_cancel = $this->input->post('txt_cancel_date');
-        $invoice_amount = $this->input->post('txt_inv_amnt');
+            $ro_id = $this->input->post('hid_id');
+            $date_of_cancel = $this->input->post('txt_cancel_date');
+            //$invoice_amount = $this->input->post('txt_inv_amnt');
 
-        $cancel_id = $this->am_model->cancel_ro();
+            $cancel_id = $this->am_model->cancel_ro();
 
-        //calculating new values after cancellation
+            //calculating new values after cancellation
 
-        $markets_for_ro = $this->am_model->get_market_for_ro($ro_id);
-        $ro_details = $this->am_model->ro_detail_for_ro_id($ro_id);
+            $markets_for_ro = $this->am_model->get_market_for_ro($ro_id);
+            log_message('INFO', 'In account_manager@post_cancelt_ro | markets_for_ro => ' . print_r($markets_for_ro, True));
+            $ro_details = $this->am_model->ro_detail_for_ro_id($ro_id);
+            log_message('INFO', 'In account_manager@post_cancelt_ro | ro_details => ' . print_r($ro_details, True));
+            $this->db->trans_start();
+            foreach ($markets_for_ro as $market) {
+                if ($market['is_cancel'] == 0 || $market['is_cancel'] == 1) {
+                    $fctData = $this->getFctData($ro_details[0]['internal_ro'], $market['market'], $ro_details[0]['camp_start_date'], $market['spot_fct'], $market['banner_fct'], $date_of_cancel);
+                    log_message('INFO', 'In account_manager@post_cancelt_ro | fctData => ' . print_r($fctData, True));
+                    $marketSpotFct = $market['spot_fct'];
+                    if ($marketSpotFct > $fctData['totalSpotFct']) {
+                        $marketSpotFct = $fctData['totalSpotFct'];
+                    }
+                    $marketBannerFct = $market['banner_fct'];
+                    if ($marketBannerFct > $fctData['totalBannerFct']) {
+                        $marketBannerFct = $fctData['totalBannerFct'];
+                    }
 
-        $this->db->trans_start();
-        foreach ($markets_for_ro as $market) {
-            if ($market['is_cancel'] == 0 || $market['is_cancel'] == 1) {
-                $fctData = $this->getFctData($ro_details[0]['internal_ro'], $market['market'], $ro_details[0]['camp_start_date'], $market['spot_fct'], $market['banner_fct'], $date_of_cancel);
+                    $spotFraction = 0.0;
+                    if (isset($marketSpotFct) && !empty($marketSpotFct) && $marketSpotFct != 0) {
+                        $spotFraction = $fctData['scheduledSpotFct'] / $marketSpotFct;
+                    }
+                    $bannerFraction = 0.0;
+                    if (isset($marketBannerFct) && !empty($marketBannerFct) && $marketBannerFct != 0) {
+                        $bannerFraction = $fctData['scheduledBannerFct'] / $marketBannerFct;
+                    }
 
-                $marketSpotFct = $market['spot_fct'];
-                if ($marketSpotFct > $fctData['totalSpotFct']) {
-                    $marketSpotFct = $fctData['totalSpotFct'];
+                    $spot_price_after_cancel = round($market['spot_price'] * $spotFraction, 2);
+                    $banner_price_after_cancel = round($market['banner_price'] * $bannerFraction, 2);
+
+                    $spot_fct_after_cancel = $fctData['scheduledSpotFct'];
+                    $banner_fct_after_cancel = $fctData['scheduledBannerFct'];
+
+                    $insert_user_data = array(
+                        'cancel_id' => $cancel_id,
+                        'am_ro_id' => $ro_id,
+                        'market' => $market['market'],
+                        'spot_price' => $spot_price_after_cancel,
+                        'spot_fct' => $spot_fct_after_cancel,
+                        'banner_price' => $banner_price_after_cancel,
+                        'banner_fct' => $banner_fct_after_cancel,
+                        'approved_type' => 0,
+                        'is_cancelled' => 1
+                    );
+
+                    $update_user_data = array(
+                        'spot_price' => $spot_price_after_cancel,
+                        'spot_fct' => $spot_fct_after_cancel,
+                        'banner_price' => $banner_price_after_cancel,
+                        'banner_fct' => $banner_fct_after_cancel,
+                        'approved_type' => 0,
+                        'is_cancelled' => 1
+                    );
+                    $where_user_data = array(
+                        'cancel_id' => $cancel_id,
+                        'am_ro_id' => $ro_id,
+                        'market' => $market['market']
+                    );
+                    log_message('INFO', 'In account_manager@post_cancelt_ro | insert_user_data => ' . print_r($insert_user_data, True));
+                    log_message('INFO', 'In account_manager@post_cancelt_ro | update_user_data => ' . print_r($update_user_data, True));
+                    log_message('INFO', 'In account_manager@post_cancelt_ro | where_user_data => ' . print_r($where_user_data, True));
+
+                    $request_count = $this->am_model->get_value_tmp_market($where_user_data);
+                    if (count($request_count) > 0) {
+                        $this->am_model->update_tmp_market($update_user_data, $where_user_data);
+                    } else {
+                        $this->am_model->insert_into_tmp_table($insert_user_data);
+                    }
+
                 }
-                $marketBannerFct = $market['banner_fct'];
-                if ($marketBannerFct > $fctData['totalBannerFct']) {
-                    $marketBannerFct = $fctData['totalBannerFct'];
-                }
-
-                $spotFraction = 0.0;
-                if (isset($marketSpotFct) && !empty($marketSpotFct) && $marketSpotFct != 0) {
-                    $spotFraction = $fctData['scheduledSpotFct'] / $marketSpotFct;
-                }
-                $bannerFraction = 0.0;
-                if (isset($marketBannerFct) && !empty($marketBannerFct) && $marketBannerFct != 0) {
-                    $bannerFraction = $fctData['scheduledBannerFct'] / $marketBannerFct;
-                }
-
-                $spot_price_after_cancel = round($market['spot_price'] * $spotFraction, 2);
-                $banner_price_after_cancel = round($market['banner_price'] * $bannerFraction, 2);
-
-                $spot_fct_after_cancel = $fctData['scheduledSpotFct'];
-                $banner_fct_after_cancel = $fctData['scheduledBannerFct'];
-
-                $insert_user_data = array(
-                    'cancel_id' => $cancel_id,
-                    'am_ro_id' => $ro_id,
-                    'market' => $market['market'],
-                    'spot_price' => $spot_price_after_cancel,
-                    'spot_fct' => $spot_fct_after_cancel,
-                    'banner_price' => $banner_price_after_cancel,
-                    'banner_fct' => $banner_fct_after_cancel,
-                    'approved_type' => 0,
-                    'is_cancelled' => 1
-                );
-
-                $update_user_data = array(
-                    'spot_price' => $spot_price_after_cancel,
-                    'spot_fct' => $spot_fct_after_cancel,
-                    'banner_price' => $banner_price_after_cancel,
-                    'banner_fct' => $banner_fct_after_cancel,
-                    'approved_type' => 0,
-                    'is_cancelled' => 1
-                );
-                $where_data = array(
-                    'cancel_id' => $cancel_id,
-                    'am_ro_id' => $ro_id,
-                    'market' => $market['market']
-                );
-
-                $request_count = $this->am_model->get_value_tmp_market($where_data);
-                if (count($request_count) > 0) {
-                    $this->am_model->update_tmp_market($update_user_data, $where_data);
-                } else {
-                    $this->am_model->insert_into_tmp_table($insert_user_data);
-                }
-
             }
+
+
+            //update status
+            $am_external_ro_id = $this->input->post('hid_id');
+            $this->am_model->update_ro_status($am_external_ro_id, 'cancel_requested');
+
+            $external_ro = $this->input->post('hid_ext_ro');
+
+            // send mail to coo/bh/scheduling_user
+            $users = $this->am_model->cancel_ro_mailto_list();
+            $email_data = array();
+            foreach ($users as $val) {
+                array_push($email_data, $val['user_email']);
+            }
+            $to_email = implode(",", $email_data);
+
+            $ro_details = $this->am_model->ro_detail_for_external_ro($external_ro);
+            $scheduler_data = $this->ro_model->get_scheduler_details();
+            $scheduler_id_email = array();
+            foreach ($scheduler_data as $data) {
+                array_push($scheduler_id_email, $data['user_email']);
+            }
+            $scheduler_id_email = implode(",", $scheduler_id_email);
+            $cc = $scheduler_id_email . "," . $logged_in[0]['user_email'];
+            //added by Nitish to get actual campaign date for RO (2.9.8)
+        // $campaign_end_date = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
+            $userData = array(
+                'ro_id' => $ro_id,
+                'mail_type' => 'cancel_ro_requested',
+                'mail_status' => 0,
+                'approval_level' => 1,
+                'user_email_id' => $to_email,
+                'cc_email_id' => $cc,
+                'file_name' => '',
+                'mail_sent_date' => date('Y-m-d'),
+                'mail_sent' => 0
+            );
+            log_message('INFO', 'In account_manager@post_cancelt_ro | userData for mail => ' . print_r($userData, True));
+            $this->ro_model->insertForMail($userData);
+            $this->db->trans_complete();
+            exec("nohup /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/MailSentForRo > /dev/null &");
+
+    //        echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
+            $response['Status'] = 'success';
+            $response['Message'] = 'Cancel Request Submitted Successfully!!';
+            $response['Data'] = array();
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(200)
+                ->set_output(json_encode($response));
+            return;
+
+        }catch(Exception $e){
+            log_message('ERROR', 'In account_manager@post_cancelt_ro | Exception occured => ' . print_r($e->getTraceAsString(), True));
+            $this->db->trans_rollback();
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(500)
+                ->set_output(json_encode($response));
+            return;
         }
-
-
-        //update status
-        $am_external_ro_id = $this->input->post('hid_id');
-        $this->am_model->update_ro_status($am_external_ro_id, 'cancel_requested');
-
-        $external_ro = $this->input->post('hid_ext_ro');
-
-        // send mail to coo/bh/scheduling_user
-        $users = $this->am_model->cancel_ro_mailto_list();
-        $email_data = array();
-        foreach ($users as $val) {
-            array_push($email_data, $val['user_email']);
-        }
-        $to_email = implode(",", $email_data);
-
-        $ro_details = $this->am_model->ro_detail_for_external_ro($external_ro);
-        $scheduler_data = $this->ro_model->get_scheduler_details();
-        $scheduler_id_email = array();
-        foreach ($scheduler_data as $data) {
-            array_push($scheduler_id_email, $data['user_email']);
-        }
-        $scheduler_id_email = implode(",", $scheduler_id_email);
-        $cc = $scheduler_id_email . "," . $logged_in[0]['user_email'];
-        //added by Nitish to get actual campaign date for RO (2.9.8)
-        $campaign_end_date = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
-        $userData = array(
-            'ro_id' => $ro_id,
-            'mail_type' => 'cancel_ro_requested',
-            'mail_status' => 0,
-            'approval_level' => 1,
-            'user_email_id' => $to_email,
-            'cc_email_id' => $cc,
-            'file_name' => '',
-            'mail_sent_date' => date('Y-m-d'),
-            'mail_sent' => 0
-        );
-        $this->ro_model->insertForMail($userData);
-        $this->db->trans_complete();
-        exec("nohup /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/MailSentForRo > /dev/null &");
-
-//        echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
-        $response['Status'] = 'success';
-        $response['Message'] = 'Cancel Request Submitted Successfully!!';
-        $response['Data'] = array();
-        $this->output
-            ->set_content_type('application/json')
-            ->set_status_header(200)
-            ->set_output(json_encode($response));
-        return;
+        
     }
 
     public function getFctData($internalRo, $marketName, $startDate, $spotFct, $bannerFct, $cancelDate = null)
@@ -1419,270 +1440,339 @@ class Account_manager extends CI_Controller
 
     public function post_cancel_ro_admin_v1()
     {
-        $this->is_logged_in();
-        //$logged_in = $this->session->userdata("logged_in_user");
+        try{
+            
 
-        $ro_id = $this->input->post('hid_id');
-        $external_ro = $this->input->post('hid_ext_ro');
-        $user_id = $this->input->post('hid_user_id');
-        $date_of_cancel = $this->input->post('txt_cancel_date');
-        $reason = $this->input->post('txt_reason');
-        $invoice_inst = $this->input->post('txt_inv_inst');
-        $invoice_amount = $this->input->post('txt_inv_amnt');
+            $this->is_logged_in();
+            //$logged_in = $this->session->userdata("logged_in_user");
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | Entered with arguments => ' . print_r($_POST, True));
+            $ro_id = $this->input->post('hid_id');
+            $external_ro = $this->input->post('hid_ext_ro');
+            $user_id = $this->input->post('hid_user_id');
+            $date_of_cancel = $this->input->post('txt_cancel_date');
+            $reason = $this->input->post('txt_reason');
+            $invoice_inst = $this->input->post('txt_inv_inst');
+            $invoice_amount = $this->input->post('txt_inv_amnt');
 
-        $parameter = $external_ro . "##" . $date_of_cancel . "##" . $ro_id;
-        $longParams = $reason . "##" . $invoice_inst;
+            $parameter = $external_ro . "##" . $date_of_cancel . "##" . $ro_id;
+            $longParams = $reason . "##" . $invoice_inst;
+            $this->db->trans_start();
+            $user_data = array('job_code' => 'cancelRo',
+                'done' => 0,
+                'params' => $parameter,
+                'customer_id' => $user_id,
+                'longParams' => $longParams
+            );
+            $this->am_model->insert_into_job_queue($user_data);
 
-        $user_data = array('job_code' => 'cancelRo',
-            'done' => 0,
-            'params' => $parameter,
-            'customer_id' => $user_id,
-            'longParams' => $longParams
-        );
-        $this->am_model->insert_into_job_queue($user_data);
+            //Updating in ro_cancel_external_ro
+            $user_data_for_entry = array('ext_ro_id' => $ro_id,
+                'user_id' => $user_id,
+                'date_of_submission' => date('Y-m-d'),
+                'date_of_cancel' => $date_of_cancel,
+                'reason' => $reason,
+                'invoice_instruction' => $invoice_inst,
+                'cancel_ro_by_admin' => 1,
+                'ro_amount' => $invoice_amount
+            );
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | user_data_for_entry => ' . print_r($user_data_for_entry, True));
+            $cancel_id = $this->am_model->update_cancel_for_admin($ro_id, $user_data_for_entry);
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | cancel_id => ' . print_r($cancel_id, True));
+            //Update The status
+            $this->am_model->update_ro_status($ro_id, 'cancel_approved');
 
-        //Updating in ro_cancel_external_ro
-        $user_data_for_entry = array('ext_ro_id' => $ro_id,
-            'user_id' => $user_id,
-            'date_of_submission' => date('Y-m-d'),
-            'date_of_cancel' => $date_of_cancel,
-            'reason' => $reason,
-            'invoice_instruction' => $invoice_inst,
-            'cancel_ro_by_admin' => 1,
-            'ro_amount' => $invoice_amount
-        );
-        $cancel_id = $this->am_model->update_cancel_for_admin($ro_id, $user_data_for_entry);
+            //Fetching:For updating the proportional values
+            $ro_details = $this->am_model->ro_detail_for_ro_id($ro_id);
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | ro_details => ' . print_r($ro_details, True));
+            $ro_amount = $ro_details[0]['gross'];
+            $agency_comm_from_ext_ro = $ro_details[0]['agency_com'];
+            $internal_ro_number = $ro_details[0]['internal_ro'];
 
-        //Update The status
-        $this->am_model->update_ro_status($ro_id, 'cancel_approved');
-
-        //Fetching:For updating the proportional values
-        $ro_details = $this->am_model->ro_detail_for_ro_id($ro_id);
-        $ro_amount = $ro_details[0]['gross'];
-        $agency_comm_from_ext_ro = $ro_details[0]['agency_com'];
-        $internal_ro_number = $ro_details[0]['internal_ro'];
-
-        $ro_amount_val = $this->am_model->get_ro_amount_data($internal_ro_number);
-        $agency_commission_amount = $ro_amount_val[0]['agency_commission_amount'];
-        $agency_rebate = $ro_amount_val[0]['agency_rebate'];
-        $marketing_promotion_amount = $ro_amount_val[0]['marketing_promotion_amount'];
-        $field_activation_amount = $ro_amount_val[0]['field_activation_amount'];
-        $sales_commissions_amount = $ro_amount_val[0]['sales_commissions_amount'];
-        $creative_services_amount = $ro_amount_val[0]['creative_services_amount'];
-        $other_expenses_amount = $ro_amount_val[0]['other_expenses_amount'];
-
-
-        //proportionality calculation
-        if ($ro_amount >= $invoice_amount) {
-            $percentage = ($ro_amount - $invoice_amount) / $ro_amount;
-            $agency_comm_from_ext_ro = $agency_comm_from_ext_ro - ($agency_comm_from_ext_ro * $percentage);
-            $agency_commission_amount = $agency_commission_amount - ($agency_commission_amount * $percentage);
-            //$agency_rebate = $agency_rebate - ($agency_rebate*$percentage) ;
-            $marketing_promotion_amount = $marketing_promotion_amount - ($marketing_promotion_amount * $percentage);
-            $field_activation_amount = $field_activation_amount - ($field_activation_amount * $percentage);
-            $sales_commissions_amount = $sales_commissions_amount - ($sales_commissions_amount * $percentage);
-            $creative_services_amount = $creative_services_amount - ($creative_services_amount * $percentage);
-            $other_expenses_amount = $other_expenses_amount - ($other_expenses_amount * $percentage);
-        } else {
-            $percentage = ($invoice_amount - $ro_amount) / $ro_amount;
-
-            $agency_comm_from_ext_ro = $agency_comm_from_ext_ro + ($agency_comm_from_ext_ro * $percentage);
-            $agency_commission_amount = $agency_commission_amount + ($agency_commission_amount * $percentage);
-            //$agency_rebate = $agency_rebate - ($agency_rebate*$percentage) ;
-            $marketing_promotion_amount = $marketing_promotion_amount + ($marketing_promotion_amount * $percentage);
-            $field_activation_amount = $field_activation_amount + ($field_activation_amount * $percentage);
-            $sales_commissions_amount = $sales_commissions_amount + ($sales_commissions_amount * $percentage);
-            $creative_services_amount = $creative_services_amount + ($creative_services_amount * $percentage);
-            $other_expenses_amount = $other_expenses_amount + ($other_expenses_amount * $percentage);
-        }
+            $ro_amount_val = $this->am_model->get_ro_amount_data($internal_ro_number);
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | ro_amount_val => ' . print_r($ro_amount_val, True));
+            $agency_commission_amount = $ro_amount_val[0]['agency_commission_amount'];
+            $agency_rebate = $ro_amount_val[0]['agency_rebate'];
+            $marketing_promotion_amount = $ro_amount_val[0]['marketing_promotion_amount'];
+            $field_activation_amount = $ro_amount_val[0]['field_activation_amount'];
+            $sales_commissions_amount = $ro_amount_val[0]['sales_commissions_amount'];
+            $creative_services_amount = $ro_amount_val[0]['creative_services_amount'];
+            $other_expenses_amount = $ro_amount_val[0]['other_expenses_amount'];
 
 
-        // code added by Lokanath: calculation of net_agency_com
-        $net_agency_com = $invoice_amount - $agency_comm_from_ext_ro;
+            //proportionality calculation
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | $ro_amount value is -' .$ro_amount. 'and $invoice_amount is - '.$invoice_amount);
+            if ($ro_amount >= $invoice_amount) {
+                $percentage = ($ro_amount - $invoice_amount) / $ro_amount;
+                $agency_comm_from_ext_ro = $agency_comm_from_ext_ro - ($agency_comm_from_ext_ro * $percentage);
+                $agency_commission_amount = $agency_commission_amount - ($agency_commission_amount * $percentage);
+                //$agency_rebate = $agency_rebate - ($agency_rebate*$percentage) ;
+                $marketing_promotion_amount = $marketing_promotion_amount - ($marketing_promotion_amount * $percentage);
+                $field_activation_amount = $field_activation_amount - ($field_activation_amount * $percentage);
+                $sales_commissions_amount = $sales_commissions_amount - ($sales_commissions_amount * $percentage);
+                $creative_services_amount = $creative_services_amount - ($creative_services_amount * $percentage);
+                $other_expenses_amount = $other_expenses_amount - ($other_expenses_amount * $percentage);
+            } else {
+                $percentage = ($invoice_amount - $ro_amount) / $ro_amount;
 
-        $ro_amount_data = array('gross' => $invoice_amount, 'agency_com' => $agency_commission_amount, 'net_agency_com' => $net_agency_com, 'previous_ro_amount' => $ro_amount);
-        $this->am_model->update_ro_data_in_ro_ext($ro_id, $ro_amount_data);
-
-        $ro_amnt_data = array(
-            'ro_amount' => $invoice_amount,
-            'agency_commission_amount' => $agency_commission_amount,
-            'agency_rebate' => $agency_rebate,
-            'marketing_promotion_amount' => $marketing_promotion_amount,
-            'field_activation_amount' => $field_activation_amount,
-            'sales_commissions_amount' => $sales_commissions_amount,
-            'creative_services_amount' => $creative_services_amount,
-            'other_expenses_amount' => $other_expenses_amount
-        );
-        $this->am_model->update_ro_amount($ro_amnt_data, $internal_ro_number);
-
-        // get_campaigns_for_internal_ro_number
-        $data = array('internal_ro_number' => $internal_ro_number);
-        $campaigns = $this->am_model->get_campaigns_from_adv_campaign($data);
-        $campaign_id = array();
-        foreach ($campaigns as $campaigns_val) {
-            array_push($campaign_id, $campaigns_val['campaign_id']);
-        }
-        $campaign_ids = implode(",", $campaign_id);
-
-        // update advertiser_screen_dates
-        $this->am_model->update_advertiser_screens_dates($campaign_ids, $date_of_cancel);
-
-        //verify whether ro is approved
-        $where_approved_data = array('internal_ro_number' => $internal_ro_number);
-        $is_approved = $this->mg_model->get_approved_nw($where_approved_data);
-
-        if (count($is_approved) > 0) {
-            //update ro_market_price with tmp data
-            $this->cancel_ro_market_wise($ro_id, $cancel_id);
-            $channels_scheduled = $this->am_model->get_all_channels_scheduled_v1($internal_ro_number);
-
-            $update_revision_no = 0;
-            $update_field = FALSE;
-            $customer_revision = array();
-
-
-            //$count = 0 ;
-            //$channel_values = $this->mg_model->get_channel_for_market($market_name) ;
-            //$channel_values = $this->mg_model->get_scheduled_channel_for_market($market_name,$internal_ro_number) ;
-            //foreach($channel_values as $mkt_chnl) {
-            //    $mkt_chnl_id = $mkt_chnl['tv_channel_id'] ;
-
-            foreach ($channels_scheduled as $chnl) {
-                $channel_id = $chnl['channel_id'];
-                //if($mkt_chnl_id != $channel_id) continue ;
-
-                $approved_nw_data = array(
-                    'tv_channel_id' => $channel_id,
-                    'internal_ro_number' => $internal_ro_number
-                );
-                $ro_approved_nw_data = $this->mg_model->get_approved_data_for_customer_channel_ro($approved_nw_data);
-                if (count($ro_approved_nw_data) <= 0) {
-                    continue;
-                }
-                $update_revision_no = $ro_approved_nw_data[0]['revision_no'] + 1;
-
-                //$initial_total_spot_ad = $ro_approved_nw_data[0]['total_spot_ad_seconds'] ;
-                //$initial_total_banner_ad = $ro_approved_nw_data[0]['total_banner_ad_seconds'] ;
-                $total_spot_second = $total_spot_second + $ro_approved_nw_data[0]['total_spot_ad_seconds'];
-                $total_banner_second = $total_banner_second + $ro_approved_nw_data[0]['total_banner_ad_seconds'];
-
-                //maintain historical data
-                $this->maintain_historical_data($ro_approved_nw_data, 'cancel_ro', $ro_id, $user_id);
-
-                $customer_id = $ro_approved_nw_data[0]['customer_id'];
-                if (!array_key_exists($customer_id, $customer_revision)) {
-                    $customer_revision[$customer_id]['customer_id'] = $customer_id;
-                    $customer_revision[$customer_id]['revision_no'] = $update_revision_no;
-                    log_message('info', 'ro_cancel_invoice complete_cancel_ro - printing customer id-' . $customer_id . ' and internal_ro_number-' . $internal_ro_number);
-                    $networkFinalInfo = $this->initiateInvoiceCancelProcess($customer_id, $internal_ro_number);
-                    log_message('info', 'ro_cancel_invoice complete_cancel_ro - printing networkFinalInfo -' . print_r($networkFinalInfo, TRUE));
-                    $this->updatingInvoiceCancelProcess($networkFinalInfo);
-                }
-                //$chnl['total_spot_ad_seconds'] == 0 :means completely cancelled
-                if (($chnl['total_spot_ad_seconds'] == 0) && ($chnl['total_banner_ad_seconds'] == 0)) {
-                    //$this->mg_model->delete_approved_data_for_customer_channel_ro($approved_nw_data) ;
-                    $update_field = TRUE;
-                    $update_approved_nw_data = array(
-                        'total_spot_ad_seconds' => $chnl['total_spot_ad_seconds'],
-                        'channel_spot_amount' => ($chnl['total_spot_ad_seconds'] * $ro_approved_nw_data[0]['channel_spot_avg_rate']) / 10,
-                        'total_banner_ad_seconds' => $chnl['total_banner_ad_seconds'],
-                        'channel_banner_amount' => ($chnl['total_banner_ad_seconds'] * $ro_approved_nw_data[0]['channel_banner_avg_rate']) / 10
-                    );
-                    $this->mg_model->update_approved_data_where_ro_customer($update_approved_nw_data, $approved_nw_data);
-                } else {
-                    $update_field = TRUE;
-                    $update_approved_nw_data = array(
-                        'total_spot_ad_seconds' => $chnl['total_spot_ad_seconds'],
-                        'channel_spot_amount' => ($chnl['total_spot_ad_seconds'] * $ro_approved_nw_data[0]['channel_spot_avg_rate']) / 10,
-                        'total_banner_ad_seconds' => $chnl['total_banner_ad_seconds'],
-                        'channel_banner_amount' => ($chnl['total_banner_ad_seconds'] * $ro_approved_nw_data[0]['channel_banner_avg_rate']) / 10
-                    );
-                    $this->mg_model->update_approved_data_where_ro_customer($update_approved_nw_data, $approved_nw_data);
-                }
-
+                $agency_comm_from_ext_ro = $agency_comm_from_ext_ro + ($agency_comm_from_ext_ro * $percentage);
+                $agency_commission_amount = $agency_commission_amount + ($agency_commission_amount * $percentage);
+                //$agency_rebate = $agency_rebate - ($agency_rebate*$percentage) ;
+                $marketing_promotion_amount = $marketing_promotion_amount + ($marketing_promotion_amount * $percentage);
+                $field_activation_amount = $field_activation_amount + ($field_activation_amount * $percentage);
+                $sales_commissions_amount = $sales_commissions_amount + ($sales_commissions_amount * $percentage);
+                $creative_services_amount = $creative_services_amount + ($creative_services_amount * $percentage);
+                $other_expenses_amount = $other_expenses_amount + ($other_expenses_amount * $percentage);
             }
 
-            if ($update_field) {
-                //update revision number,pdf generation status in ro_approved_network
-                foreach ($customer_revision as $value) {
-                    $endDateCrossed = $this->mg_model->checkEndDateCrossedForROCidAndCancelRo($internal_ro_number, $value['customer_id'], $this->input->post('txt_cancel_date'));
-                    if (!$endDateCrossed) {
-                        $revision_pdf = array(
-                            'revision_no' => $value['revision_no'],
-                            'pdf_generation_status' => 0
+
+            // code added by Lokanath: calculation of net_agency_com
+            $net_agency_com = $invoice_amount - $agency_comm_from_ext_ro;
+
+            $ro_amount_data = array('gross' => $invoice_amount, 'agency_com' => $agency_commission_amount, 'net_agency_com' => $net_agency_com, 'previous_ro_amount' => $ro_amount);
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | ro_amount_data => ' . print_r($ro_amount_data, True));
+            $this->am_model->update_ro_data_in_ro_ext($ro_id, $ro_amount_data);
+
+            $ro_amnt_data = array(
+                'ro_amount' => $invoice_amount,
+                'agency_commission_amount' => $agency_commission_amount,
+                'agency_rebate' => $agency_rebate,
+                'marketing_promotion_amount' => $marketing_promotion_amount,
+                'field_activation_amount' => $field_activation_amount,
+                'sales_commissions_amount' => $sales_commissions_amount,
+                'creative_services_amount' => $creative_services_amount,
+                'other_expenses_amount' => $other_expenses_amount
+            );
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | ro_amnt_data => ' . print_r($ro_amnt_data, True));
+            $this->am_model->update_ro_amount($ro_amnt_data, $internal_ro_number);
+
+            // get_campaigns_for_internal_ro_number
+            $data = array('internal_ro_number' => $internal_ro_number);
+            $campaigns = $this->am_model->get_campaigns_from_adv_campaign($data);
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | campaigns => ' . print_r($campaigns, True));
+            
+            $campaign_id = array();
+            foreach ($campaigns as $campaigns_val) {
+                array_push($campaign_id, $campaigns_val['campaign_id']);
+            }
+            $campaign_ids = implode(",", $campaign_id);
+
+            // update advertiser_screen_dates
+            $this->am_model->update_advertiser_screens_dates($campaign_ids, $date_of_cancel);
+
+            //verify whether ro is approved
+            $where_approved_data = array('internal_ro_number' => $internal_ro_number);
+            $is_approved = $this->mg_model->get_approved_nw($where_approved_data);
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | is_approved => ' . print_r($is_approved, True));
+            
+            if (count($is_approved) > 0) {
+                //update ro_market_price with tmp data
+                $this->cancel_ro_market_wise($ro_id, $cancel_id);
+                $channels_scheduled = $this->am_model->get_all_channels_scheduled_v1($internal_ro_number);
+                log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | channels_scheduled => ' . print_r($channels_scheduled, True));
+
+                $update_revision_no = 0;
+                $update_field = FALSE;
+                $customer_revision = array();
+
+
+                //$count = 0 ;
+                //$channel_values = $this->mg_model->get_channel_for_market($market_name) ;
+                //$channel_values = $this->mg_model->get_scheduled_channel_for_market($market_name,$internal_ro_number) ;
+                //foreach($channel_values as $mkt_chnl) {
+                //    $mkt_chnl_id = $mkt_chnl['tv_channel_id'] ;
+
+                foreach ($channels_scheduled as $chnl) {
+
+                    $channel_id = $chnl['channel_id'];
+                    //if($mkt_chnl_id != $channel_id) continue ;
+                    log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | each channels_scheduled is => ' . print_r($chnl, True));
+                    $approved_nw_data = array(
+                        'tv_channel_id' => $channel_id,
+                        'internal_ro_number' => $internal_ro_number
+                    );
+                    $ro_approved_nw_data = $this->mg_model->get_approved_data_for_customer_channel_ro($approved_nw_data);
+                    log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | ro_approved_nw_data => ' . print_r($ro_approved_nw_data, True));
+                    if (count($ro_approved_nw_data) <= 0) {
+                        continue;
+                    }
+                    $update_revision_no = $ro_approved_nw_data[0]['revision_no'] + 1;
+
+                    //$initial_total_spot_ad = $ro_approved_nw_data[0]['total_spot_ad_seconds'] ;
+                    //$initial_total_banner_ad = $ro_approved_nw_data[0]['total_banner_ad_seconds'] ;
+                    $total_spot_second = $total_spot_second + $ro_approved_nw_data[0]['total_spot_ad_seconds'];
+                    $total_banner_second = $total_banner_second + $ro_approved_nw_data[0]['total_banner_ad_seconds'];
+                    log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | total_spot_second is => ' . $total_spot_second .' total_banner_second =>'. $total_banner_second);
+                    //maintain historical data
+                    $this->maintain_historical_data($ro_approved_nw_data, 'cancel_ro', $ro_id, $user_id);
+
+                    $customer_id = $ro_approved_nw_data[0]['customer_id'];
+                    if (!array_key_exists($customer_id, $customer_revision)) {
+                        $customer_revision[$customer_id]['customer_id'] = $customer_id;
+                        $customer_revision[$customer_id]['revision_no'] = $update_revision_no;
+                        log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | ro_cancel_invoice complete_cancel_ro - printing customer id-' . $customer_id . ' and internal_ro_number-' . $internal_ro_number);
+                        $networkFinalInfo = $this->initiateInvoiceCancelProcess($customer_id, $internal_ro_number);
+
+                        log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | ro_cancel_invoice complete_cancel_ro - printing networkFinalInfo -' . print_r($networkFinalInfo, TRUE));
+                        $this->updatingInvoiceCancelProcess($networkFinalInfo);
+                    }
+                    //$chnl['total_spot_ad_seconds'] == 0 :means completely cancelled
+                    if (($chnl['total_spot_ad_seconds'] == 0) && ($chnl['total_banner_ad_seconds'] == 0)) {
+                        //$this->mg_model->delete_approved_data_for_customer_channel_ro($approved_nw_data) ;
+                        $update_field = TRUE;
+                        $update_approved_nw_data = array(
+                            'total_spot_ad_seconds' => $chnl['total_spot_ad_seconds'],
+                            'channel_spot_amount' => ($chnl['total_spot_ad_seconds'] * $ro_approved_nw_data[0]['channel_spot_avg_rate']) / 10,
+                            'total_banner_ad_seconds' => $chnl['total_banner_ad_seconds'],
+                            'channel_banner_amount' => ($chnl['total_banner_ad_seconds'] * $ro_approved_nw_data[0]['channel_banner_avg_rate']) / 10
                         );
-                        $where_data = array(
-                            'internal_ro_number' => $internal_ro_number,
-                            'customer_id' => $value['customer_id']
+                        log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | update_approved_nw_data ' . print_r($update_approved_nw_data, TRUE));
+                        $this->mg_model->update_approved_data_where_ro_customer($update_approved_nw_data, $approved_nw_data);
+                    } else {
+                        $update_field = TRUE;
+                        $update_approved_nw_data = array(
+                            'total_spot_ad_seconds' => $chnl['total_spot_ad_seconds'],
+                            'channel_spot_amount' => ($chnl['total_spot_ad_seconds'] * $ro_approved_nw_data[0]['channel_spot_avg_rate']) / 10,
+                            'total_banner_ad_seconds' => $chnl['total_banner_ad_seconds'],
+                            'channel_banner_amount' => ($chnl['total_banner_ad_seconds'] * $ro_approved_nw_data[0]['channel_banner_avg_rate']) / 10
                         );
-                        //$networkFinalInfo = $this->initiateInvoiceCancelProcess($customer_id,$internal_ro_number);
-                        $this->mg_model->update_approved_data_where_ro_customer($revision_pdf, $where_data);
-                        //$this->updatingInvoiceCancelProcess($networkFinalInfo);
+                        log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | update_approved_nw_data ' . print_r($update_approved_nw_data, TRUE));
+                        $this->mg_model->update_approved_data_where_ro_customer($update_approved_nw_data, $approved_nw_data);
+                    }
+
+                }
+
+                if ($update_field) {
+                    //update revision number,pdf generation status in ro_approved_network
+                    log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | customer_revision ' . print_r($customer_revision, TRUE));
+                    foreach ($customer_revision as $value) {
+                        $endDateCrossed = $this->mg_model->checkEndDateCrossedForROCidAndCancelRo($internal_ro_number, $value['customer_id'], $this->input->post('txt_cancel_date'));
+                        if (!$endDateCrossed) {
+                            $revision_pdf = array(
+                                'revision_no' => $value['revision_no'],
+                                'pdf_generation_status' => 0
+                            );
+                            $where_pdf_data = array(
+                                'internal_ro_number' => $internal_ro_number,
+                                'customer_id' => $value['customer_id']
+                            );
+                            //$networkFinalInfo = $this->initiateInvoiceCancelProcess($customer_id,$internal_ro_number);
+                            log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | revision_pdf ' . print_r($revision_pdf, TRUE));
+                            log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | where_pdf_data ' . print_r($where_pdf_data, TRUE));
+                            $this->mg_model->update_approved_data_where_ro_customer($revision_pdf, $where_pdf_data);
+                            //$this->updatingInvoiceCancelProcess($networkFinalInfo);
+                        }
                     }
                 }
+
+                //update external ro report detail
+                $this->update_into_external_ro_report_detail($internal_ro_number);
             }
 
-            //update external ro report detail
-            $this->update_into_external_ro_report_detail($internal_ro_number);
+            //Insert into Surefire
+            $this->mg_model->insertIntoRoSureFire(array('ro_id' => $ro_id, 'ro_status' => 'CANCEL_RO', 'cancel_date' => $this->input->post('txt_cancel_date'), 'processing_status' => 0));
+
+            // send mail to coo/bh/scheduling_user/AM owns/Finance user
+            $users = $this->am_model->cancel_ro_mailto_list();
+            $email_data = array();
+            foreach ($users as $val) {
+                if (!isset($val['user_email']) || empty($val['user_email'])) continue;
+                array_push($email_data, $val['user_email']);
+            }
+            $am_email_for_ro = $this->am_model->get_am_email_for_created_ro($ro_id);
+
+            $to_email = implode(",", $email_data) . "," . $am_email_for_ro[0]['user_email'];
+
+            $ro_details = $this->am_model->ro_detail_for_external_ro($external_ro);
+
+            $actual_campaign_end_date = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
+            log_message('info', 'In account_manager@post_cancel_ro_admin_v1 | actual_campaign_end_date ' . print_r($actual_campaign_end_date, TRUE));
+            /*if ($actual_campaign_end_date != '') {
+                $mailTemplateFileName   = "cancel_ext_ro.html";
+                mail_send_v1($to_email,
+                    "cancel_ext_ro",
+                    
+                    array(
+                        'EXTERNAL_RO' => $external_ro,
+                        'INTERNAL_RO' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'CAMPAIGN_END_DATE' => $actual_campaign_end_date,
+                        'RO_CANCEL_DATE' => $this->input->post('txt_cancel_date'),
+                        'REASON' => $this->input->post('txt_reason'),
+                        'INVOICE_INST' => $this->input->post('txt_inv_inst')
+                    ),
+                    '',
+                    '',
+                    '',
+                    ''
+                );
+            } else {
+                $mailTemplateFileName   = "complete_cancel_ext_ro.html";
+                mail_send_v1($to_email,
+                    "complete_cancel_ext_ro",
+                    array('EXTERNAL_RO' => $external_ro),
+                    array(
+                        'EXTERNAL_RO' => $external_ro,
+                        'INTERNAL_RO' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'RO_CANCEL_DATE' => $this->input->post('txt_cancel_date'),
+                        'REASON' => $this->input->post('txt_reason'),
+                        'INVOICE_INST' => $this->input->post('txt_inv_inst')
+                    ),
+                    '',
+                    '',
+                    '',
+                    ''
+                );
+            }
+            */
+            if ($actual_campaign_end_date != '') {
+                $mailTemplateFileName   = "cancel_ext_ro.html";
+                $mailPlaceHolderValues = array(
+                        'EXTERNAL_RO' => $external_ro,
+                        'INTERNAL_RO' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'CAMPAIGN_END_DATE' => $actual_campaign_end_date,
+                        'RO_CANCEL_DATE' => $this->input->post('txt_cancel_date'),
+                        'REASON' => $this->input->post('txt_reason'),
+                        'INVOICE_INST' => $this->input->post('txt_inv_inst')
+                );
+                
+            } else {
+                $mailTemplateFileName   = "complete_cancel_ext_ro.html";
+                $mailPlaceHolderValues =    array(
+                        'EXTERNAL_RO' => $external_ro,
+                        'INTERNAL_RO' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'RO_CANCEL_DATE' => $this->input->post('txt_cancel_date'),
+                        'REASON' => $this->input->post('txt_reason'),
+                        'INVOICE_INST' => $this->input->post('txt_inv_inst')
+                );
+            }
+        
+            $emailServiceObj        = new EmailService($to_email);
+            log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | ro_cancellation Email object initialised => ' . print_r($emailServiceObj, True));
+            $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+            if($status){
+                log_message('INFO', 'In account_manager@post_cancel_ro_admin_v1 | RO cancellation is approved.');
+                $this->db->trans_complete();
+            }else{
+                log_message('ERROR', 'In account_manager@post_cancel_ro_admin_v1 | could not sent RO cancellation mail , so RO cancellation is not approved.');
+                $this->db->trans_rollback();
+                $this->session->set_flashdata('approval_error', 'Something went wrong while sending the ro cancellation mail.Hence cancellation of RO is not approved');
+            }
+            redirect("/ro_manager/pending_requests");
+            //echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
+        }catch(Exception $e){
+            log_message('ERROR', 'In account_manager@post_cancel_ro_admin_v1 | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->session->set_flashdata('approval_error', 'Something went wrong while approving the cancellation of RO.');
+            $this->db->trans_rollback();
+            redirect("/ro_manager/pending_requests");
         }
-
-        //Insert into Surefire
-        $this->mg_model->insertIntoRoSureFire(array('ro_id' => $ro_id, 'ro_status' => 'CANCEL_RO', 'cancel_date' => $this->input->post('txt_cancel_date'), 'processing_status' => 0));
-
-        // send mail to coo/bh/scheduling_user/AM owns/Finance user
-        $users = $this->am_model->cancel_ro_mailto_list();
-        $email_data = array();
-        foreach ($users as $val) {
-            if (!isset($val['user_email']) || empty($val['user_email'])) continue;
-            array_push($email_data, $val['user_email']);
-        }
-        $am_email_for_ro = $this->am_model->get_am_email_for_created_ro($ro_id);
-
-        $to_email = implode(",", $email_data) . "," . $am_email_for_ro[0]['user_email'];
-
-        $ro_details = $this->am_model->ro_detail_for_external_ro($external_ro);
-
-        $actual_campaign_end_date = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
-
-        if ($actual_campaign_end_date != '') {
-            mail_send_v1($to_email,
-                "cancel_ext_ro",
-                array('EXTERNAL_RO' => $external_ro),
-                array(
-                    'EXTERNAL_RO' => $external_ro,
-                    'INTERNAL_RO' => $ro_details[0]['internal_ro'],
-                    'CLIENT_NAME' => $ro_details[0]['client'],
-                    'AGENCY_NAME' => $ro_details[0]['agency'],
-                    'CAMPAIGN_END_DATE' => $actual_campaign_end_date,
-                    'RO_CANCEL_DATE' => $this->input->post('txt_cancel_date'),
-                    'REASON' => $this->input->post('txt_reason'),
-                    'INVOICE_INST' => $this->input->post('txt_inv_inst')
-                ),
-                '',
-                '',
-                '',
-                ''
-            );
-        } else {
-            mail_send_v1($to_email,
-                "complete_cancel_ext_ro",
-                array('EXTERNAL_RO' => $external_ro),
-                array(
-                    'EXTERNAL_RO' => $external_ro,
-                    'INTERNAL_RO' => $ro_details[0]['internal_ro'],
-                    'CLIENT_NAME' => $ro_details[0]['client'],
-                    'AGENCY_NAME' => $ro_details[0]['agency'],
-                    'RO_CANCEL_DATE' => $this->input->post('txt_cancel_date'),
-                    'REASON' => $this->input->post('txt_reason'),
-                    'INVOICE_INST' => $this->input->post('txt_inv_inst')
-                ),
-                '',
-                '',
-                '',
-                ''
-            );
-        }
-        echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
+        
     }
 
     public function cancel_ro_market_wise($ro_id, $cancel_id)
@@ -1711,14 +1801,15 @@ class Account_manager extends CI_Controller
 
     public function initiateInvoiceCancelProcess($customer_id, $internal_ro)
     {
+        log_message('info', 'In account_manager@initiateInvoiceCancelProcess | Entered with arguments -' . print_r(func_get_args(), TRUE));
         $marketStr = '';
         $networkFinalInfo = array();
         $networkInfo = $this->mg_model->getAllNetworkInfo($customer_id, $internal_ro);
-        log_message('info', 'ro_cancel_invoice complete_cancel_ro complete ro networkInfo array-' . print_r($networkInfo, TRUE));
+        log_message('info', 'In account_manager@initiateInvoiceCancelProcess | networkInfo -' . print_r($networkInfo, TRUE));
         if (count($networkInfo) > 0) {
             $networkFinalInfo = $networkInfo[0];
             $roNetworkMarkets = $this->mg_model->getScheduledMarketForChannel(array($networkFinalInfo['channel_names']), $internal_ro);
-            log_message('info', 'ro_cancel_invoice complete_cancel_ro complete ro network related channels-' . print_r($roNetworkMarkets, TRUE));
+            log_message('info', 'In account_manager@initiateInvoiceCancelProcess | ro_cancel_invoice complete_cancel_ro complete ro network related channels-' . print_r($roNetworkMarkets, TRUE));
             //echo "<pre>";print_r($networkFinalInfo);exit;
             foreach ($roNetworkMarkets as $eachNetworkMarkets) {
                 if ($marketStr == '') {
@@ -1739,7 +1830,7 @@ class Account_manager extends CI_Controller
         if (count($networkFinalInfo) > 0) {
             $checkForPresenceOfInvoicedata = $this->mg_model->checkForPresenceOfInvoicedata($networkFinalInfo['network_ro_number']);
             $networkFinalInfo['pdf_processing'] = 0;
-            log_message('info', 'ro_cancel_invoice complete_cancel_ro networkInfo array-' . print_r($networkFinalInfo, TRUE));
+            log_message('info', 'In account_manager@updatingInvoiceCancelProcess | ro_cancel_invoice complete_cancel_ro networkInfo array-' . print_r($networkFinalInfo, TRUE));
             if (count($checkForPresenceOfInvoicedata) > 0) {
                 $this->mg_model->updateInvoiceCancelData($networkFinalInfo);
             } else {
@@ -2715,81 +2806,95 @@ class Account_manager extends CI_Controller
 
     public function post_cancel_content_brand()
     {
-        $this->is_logged_in();
-        log_message('info', 'in account_manager@post_cancel_markets| post data - ' . print_r($_POST, true));
-        $logged_in = $this->session->userdata("logged_in_user");
+        try{
+            $this->is_logged_in();
+            log_message('info', 'in account_manager@post_cancel_content_brand| post data - ' . print_r($_POST, true));
+            $logged_in = $this->session->userdata("logged_in_user");
 
-        $order_id = $this->input->post('hid_order_id');
-        $am_ro_id = $this->input->post('hid_id');
-        $edit = $this->input->post('hid_edit');
+            //$order_id = $this->input->post('hid_order_id');
+            $am_ro_id = $this->input->post('hid_id');
+            //$edit = $this->input->post('hid_edit');
 
-        $cancel_date = $this->input->post('txt_cancel_date');
-        $cancel_reason = $this->input->post('reason_can');
-        $markets_price = $this->input->post('markets');
-        $cancel_type = $this->input->post('hid_cancel_market_type');
-        $caption_brand = $this->input->post('caption_brand');
+            $cancel_date = $this->input->post('txt_cancel_date');
+            $cancel_reason = $this->input->post('reason_can');
+            $markets_price = $this->input->post('markets');
+            $cancel_type = $this->input->post('hid_cancel_market_type');
+            $caption_brand = $this->input->post('caption_brand');
 
-        $user_data = array(
-            'ext_ro_id' => $am_ro_id,
-            'cancel_type' => $cancel_type,
-            'user_id' => $logged_in[0]['user_id'],
-            'date_of_submission' => date('Y-m-d'),
-            'date_of_cancel' => $cancel_date,
-            'reason' => $cancel_reason,
-            'invoice_instruction' => 'None',
-            'ro_amount' => 0,
-            'cancel_ro_by_admin' => 0,
-            'caption_brand_name' => $caption_brand
-        );
-        $this->db->trans_start();
-        $inserted_id = $this->am_model->insert_into_cancel_market($user_data);
-        $market_edited_pricelist = array();
-        $market_cancelled = array();
-        $revised_market_data = '';
-
-        foreach ($markets_price as $market_name => $market_ro_amount) {
-            $market_name = str_replace("_", " ", $market_name);
             $user_data = array(
-                'cancel_id' => $inserted_id,
-                'am_ro_id' => $am_ro_id,
-                'market' => $market_name,
-                'spot_price' => $market_ro_amount['spot'],
-                'spot_fct' => $market_ro_amount['spot_fct'],
-                'banner_price' => $market_ro_amount['banner'],
-                'banner_fct' => $market_ro_amount['banner_fct'],
-                'approved_type' => 0,
-                'is_cancelled' => $market_ro_amount['is_cancelled']
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => $cancel_type,
+                'user_id' => $logged_in[0]['user_id'],
+                'date_of_submission' => date('Y-m-d'),
+                'date_of_cancel' => $cancel_date,
+                'reason' => $cancel_reason,
+                'invoice_instruction' => 'None',
+                'ro_amount' => 0,
+                'cancel_ro_by_admin' => 0,
+                'caption_brand_name' => $caption_brand
             );
-            if ($market_ro_amount['is_cancelled'] == 1) {
-                array_push($market_cancelled, $market_name);
-            }//else{
-            //array_push($market_edited,$market_name) ;
-            $tmp = array();
-            $tmp['market_name'] = $market_name;
-            $tmp['spot_price'] = $market_ro_amount['spot'];
-            $tmp['banner_price'] = $market_ro_amount['banner'];
+            $this->db->trans_start();
+            log_message('info', 'in account_manager@post_cancel_content_brand| user_data - ' . print_r($user_data, true));
+            $inserted_id = $this->am_model->insert_into_cancel_market($user_data);
+            //$market_edited_pricelist = array();
+            $market_cancelled = array();
+            $revised_market_data = '';
 
-            $revised_market_data = $revised_market_data . $market_name . " : " . $market_ro_amount['spot'] . " : " . $market_ro_amount['banner'] . "<br/>";
-            array_push($market_edited_pricelist, $tmp);
-            // }
-            $this->am_model->insert_into_tmp_table($user_data);
-            // }
-        }
-        $this->db->trans_complete();
-        //RC:Deepak - market edited and price should be part of the email sent
-        //fixed above RC
-        //Mail Intimation
-        $ro_details = $this->am_model->ro_detail_for_ro_id($am_ro_id);
-        $to = implode(",", convert_into_array($this->user_model->get_bhs(), 'user_email'));
-        $cc = '';
+            foreach ($markets_price as $market_name => $market_ro_amount) {
+                $market_name = str_replace("_", " ", $market_name);
+                $user_data = array(
+                    'cancel_id' => $inserted_id,
+                    'am_ro_id' => $am_ro_id,
+                    'market' => $market_name,
+                    'spot_price' => $market_ro_amount['spot'],
+                    'spot_fct' => $market_ro_amount['spot_fct'],
+                    'banner_price' => $market_ro_amount['banner'],
+                    'banner_fct' => $market_ro_amount['banner_fct'],
+                    'approved_type' => 0,
+                    'is_cancelled' => $market_ro_amount['is_cancelled']
+                );
+                log_message('info', 'in account_manager@post_cancel_content_brand| marketwise user_data - ' . print_r($user_data, true));
+                if ($market_ro_amount['is_cancelled'] == 1) {
+                    array_push($market_cancelled, $market_name);
+                }//else{
+                //array_push($market_edited,$market_name) ;
+               /* $tmp = array();
+                $tmp['market_name'] = $market_name;
+                $tmp['spot_price'] = $market_ro_amount['spot'];
+                $tmp['banner_price'] = $market_ro_amount['banner'];*/
 
-        if ($cancel_type == 'cancel_content') {
+                $revised_market_data = $revised_market_data . $market_name . " : " . $market_ro_amount['spot'] . " : " . $market_ro_amount['banner'] . "<br/>";
+               // array_push($market_edited_pricelist, $tmp);
+                // }
+                $this->am_model->insert_into_tmp_table($user_data);
+                // }
+            }
+            //$this->db->trans_complete();
+            //RC:Deepak - market edited and price should be part of the email sent
+            //fixed above RC
+            //Mail Intimation
+            $ro_details = $this->am_model->ro_detail_for_ro_id($am_ro_id);
+            $to = implode(",", convert_into_array($this->user_model->get_bhs(), 'user_email'));
+           
 
-            email_send($to,
-                $cc,
-                "content_cancellation_request",
-                array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
-                array(
+            if ($cancel_type == 'cancel_content') {
+
+                /*email_send($to,
+                    $cc,
+                    "content_cancellation_request",
+                    array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
+                    array(
+                        'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
+                        'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'CONTENT_CANCELLED' => $caption_brand . "( " . implode(",", $market_cancelled) . " )",
+                        'MARKET_CANCELLED' => $revised_market_data,
+                        'REASON' => $cancel_reason
+                    )
+                );*/
+                $mailTemplateFileName  = "content_cancellation_request.html";
+                $mailPlaceHolderValues =  array(
                     'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
                     'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
                     'CLIENT_NAME' => $ro_details[0]['client'],
@@ -2797,13 +2902,161 @@ class Account_manager extends CI_Controller
                     'CONTENT_CANCELLED' => $caption_brand . "( " . implode(",", $market_cancelled) . " )",
                     'MARKET_CANCELLED' => $revised_market_data,
                     'REASON' => $cancel_reason
-                )
+                );
+                $typeOfMail = 'cancelling market by content';
+
+            } else if ($cancel_type == 'cancel_brand') {
+                $brandName = $this->mg_model->getBrandName($caption_brand);
+              /*  email_send($to,
+                    $cc,
+                    "brand_cancellation_request",
+                    array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
+                    array(
+                        'ACCOUNT_MANAGER_NAME' => $logged_in[0]['user_name'],
+                        'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
+                        'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'BRAND_CANCELLED' => $brandName . "( " . implode(",", $market_cancelled) . " )",
+                        'MARKET_CANCELLED' => $revised_market_data,
+                        'REASON' => $cancel_reason
+                    )
+                );*/
+                $mailTemplateFileName  = "brand_cancellation_request.html";
+                $mailPlaceHolderValues =  array(
+                        'ACCOUNT_MANAGER_NAME' => $logged_in[0]['user_name'],
+                        'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
+                        'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'BRAND_CANCELLED' => $brandName . "( " . implode(",", $market_cancelled) . " )",
+                        'MARKET_CANCELLED' => $revised_market_data,
+                        'REASON' => $cancel_reason
+                );
+                $typeOfMail = 'cancelling market by brand';
+            }
+            
+            $emailServiceObj  = new EmailService($to);
+            log_message('info', 'In account_manager@post_cancel_content_brand | cancel_market_content_brand Email object initialised => ' . print_r($emailServiceObj, True));
+        
+            $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+            if($status){
+                $this->db->trans_complete();
+                log_message('info', 'In account_manager@post_cancel_content_brand | Mail sent successfully');
+                $httpcode = 200;
+                $response = array(
+                    'Status'=> 'success',
+                    'Message'=> 'Request Successful!!',
+                    'Data'=> array()
+                );
+            }else{
+                $this->db->trans_rollback();
+                $httpcode = 500;
+                log_message('info', 'In account_manager@post_cancel_content_brand | Mail could not sent successfully while '.$typeOfMail);
+                $response = array(
+                    'Status'=> 'fail',
+                    'Message'=> 'Something went wrong ,  Mail could not sent successfully while '.$typeOfMail.'Request could not sent Successful!!',
+                    'Data'=> array()
+                );
+            }
+            //redirect('ro_manager/approve/' . $order_id . '/' . $edit . '/' . $am_ro_id);
+            
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header($httpcode )
+                ->set_output(json_encode($response));
+            return;
+        }catch(Exception $e){
+            log_message('ERROR', 'In account_manager@post_cancel_content_brand | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->db->trans_rollback();
+            log_message('info', 'In ro_manager@post_cancel_content_brand | Exiting');
+            $response = array(
+                'Status'=> 'fail',
+                'Message'=> 'Request could not sent Successfully',
+                'Data'=> array()
             );
-        } else if ($cancel_type == 'cancel_brand') {
-            $brandName = $this->mg_model->getBrandName($caption_brand);
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(500)
+                ->set_output(json_encode($response));
+            return;
+        }
+        
+    }
+
+    public function post_cancel_markets()
+    {
+        try{
+            $this->is_logged_in();
+            log_message('info', 'in account_manager@post_cancel_markets| postdata - ' . print_r($_POST, true));
+            $logged_in = $this->session->userdata("logged_in_user");
+    
+           // $order_id = $this->input->post('hid_order_id');
+            $am_ro_id = $this->input->post('hid_id');
+          //  $edit = $this->input->post('hid_edit');
+    
+            $cancel_date = $this->input->post('txt_cancel_date');
+            $cancel_reason = $this->input->post('reason_can');
+            $markets_price = $this->input->post('markets');
+            $cancel_type = $this->input->post('hid_cancel_market_type');
+    
+    
+            $user_data = array(
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => $cancel_type,
+                'user_id' => $logged_in[0]['user_id'],
+                'date_of_submission' => date('Y-m-d'),
+                'date_of_cancel' => $cancel_date,
+                'reason' => $cancel_reason,
+                'invoice_instruction' => 'None',
+                'ro_amount' => 0,
+                'cancel_ro_by_admin' => 0
+            );
+    
+            $this->db->trans_start();
+            log_message('info', 'in account_manager@post_cancel_markets| user_data - ' . print_r($user_data, true));
+            $inserted_id = $this->am_model->insert_into_cancel_market($user_data);
+            $market_edited_pricelist = array();
+            $market_cancelled = array();
+    
+            foreach ($markets_price as $market_name => $market_ro_amount) {
+                $market_name = str_replace("_", " ", $market_name);
+                $user_data = array(
+                    'cancel_id' => $inserted_id,
+                    'am_ro_id' => $am_ro_id,
+                    'market' => $market_name,
+                    'spot_price' => $market_ro_amount['spot'],
+                    'spot_fct' => $market_ro_amount['spot_fct'],
+                    'banner_price' => $market_ro_amount['banner'],
+                    'banner_fct' => $market_ro_amount['banner_fct'],
+                    'approved_type' => 0,
+                    'is_cancelled' => $market_ro_amount['is_cancelled']
+                );
+                log_message('info', 'in account_manager@post_cancel_markets| marketwise user_data - ' . print_r($user_data, true));
+                if ($market_ro_amount['is_cancelled'] == 1) {
+                    array_push($market_cancelled, $market_name);
+                }//else{
+                //array_push($market_edited,$market_name) ;
+                $tmp = array();
+                $tmp['market_name'] = $market_name;
+                $tmp['spot_price'] = $market_ro_amount['spot'];
+                $tmp['banner_price'] = $market_ro_amount['banner'];
+    
+                array_push($market_edited_pricelist, $tmp);
+                // }
+                $this->am_model->insert_into_tmp_table($user_data);
+                // }
+            }
+            
+            //RC:Deepak - market edited and price should be part of the email sent
+            //fixed above RC
+            //Mail Intimation
+            $ro_details = $this->am_model->ro_detail_for_ro_id($am_ro_id);
+            $to = implode(",", convert_into_array($this->user_model->get_bhs(), 'user_email'));
+           /* $cc = '';
             email_send($to,
                 $cc,
-                "brand_cancellation_request",
+                "market_cancellation_request",
                 array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
                 array(
                     'ACCOUNT_MANAGER_NAME' => $logged_in[0]['user_name'],
@@ -2811,96 +3064,12 @@ class Account_manager extends CI_Controller
                     'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
                     'CLIENT_NAME' => $ro_details[0]['client'],
                     'AGENCY_NAME' => $ro_details[0]['agency'],
-                    'BRAND_CANCELLED' => $brandName . "( " . implode(",", $market_cancelled) . " )",
-                    'MARKET_CANCELLED' => $revised_market_data,
+                    'MARKET_CANCELLED' => implode(",", $market_cancelled),
+                    'MARKET_EDITED_PRICELIST' => make_market_price($market_edited_pricelist),
                     'REASON' => $cancel_reason
                 )
-            );
-        }
-        //redirect('ro_manager/approve/' . $order_id . '/' . $edit . '/' . $am_ro_id);
-        $response['Status'] = 'success';
-        $response['Message'] = 'Request Successful!!';
-        $response['Data'] = array();
-        $this->output
-            ->set_content_type('application/json')
-            ->set_status_header(200)
-            ->set_output(json_encode($response));
-        return;
-    }
-
-    public function post_cancel_markets()
-    {
-
-        $this->is_logged_in();
-        log_message('info', 'in account_manager@post_cancel_markets| postdata - ' . print_r($_POST, true));
-        $logged_in = $this->session->userdata("logged_in_user");
-
-        $order_id = $this->input->post('hid_order_id');
-        $am_ro_id = $this->input->post('hid_id');
-        $edit = $this->input->post('hid_edit');
-
-        $cancel_date = $this->input->post('txt_cancel_date');
-        $cancel_reason = $this->input->post('reason_can');
-        $markets_price = $this->input->post('markets');
-        $cancel_type = $this->input->post('hid_cancel_market_type');
-
-
-        $user_data = array(
-            'ext_ro_id' => $am_ro_id,
-            'cancel_type' => $cancel_type,
-            'user_id' => $logged_in[0]['user_id'],
-            'date_of_submission' => date('Y-m-d'),
-            'date_of_cancel' => $cancel_date,
-            'reason' => $cancel_reason,
-            'invoice_instruction' => 'None',
-            'ro_amount' => 0,
-            'cancel_ro_by_admin' => 0
-        );
-
-        $this->db->trans_start();
-        $inserted_id = $this->am_model->insert_into_cancel_market($user_data);
-        $market_edited_pricelist = array();
-        $market_cancelled = array();
-
-        foreach ($markets_price as $market_name => $market_ro_amount) {
-            $market_name = str_replace("_", " ", $market_name);
-            $user_data = array(
-                'cancel_id' => $inserted_id,
-                'am_ro_id' => $am_ro_id,
-                'market' => $market_name,
-                'spot_price' => $market_ro_amount['spot'],
-                'spot_fct' => $market_ro_amount['spot_fct'],
-                'banner_price' => $market_ro_amount['banner'],
-                'banner_fct' => $market_ro_amount['banner_fct'],
-                'approved_type' => 0,
-                'is_cancelled' => $market_ro_amount['is_cancelled']
-            );
-            if ($market_ro_amount['is_cancelled'] == 1) {
-                array_push($market_cancelled, $market_name);
-            }//else{
-            //array_push($market_edited,$market_name) ;
-            $tmp = array();
-            $tmp['market_name'] = $market_name;
-            $tmp['spot_price'] = $market_ro_amount['spot'];
-            $tmp['banner_price'] = $market_ro_amount['banner'];
-
-            array_push($market_edited_pricelist, $tmp);
-            // }
-            $this->am_model->insert_into_tmp_table($user_data);
-            // }
-        }
-        $this->db->trans_complete();
-        //RC:Deepak - market edited and price should be part of the email sent
-        //fixed above RC
-        //Mail Intimation
-        $ro_details = $this->am_model->ro_detail_for_ro_id($am_ro_id);
-        $to = implode(",", convert_into_array($this->user_model->get_bhs(), 'user_email'));
-        $cc = '';
-        email_send($to,
-            $cc,
-            "market_cancellation_request",
-            array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
-            array(
+            );*/
+            $mailPlaceHolderValues = array(
                 'ACCOUNT_MANAGER_NAME' => $logged_in[0]['user_name'],
                 'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
                 'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
@@ -2909,17 +3078,55 @@ class Account_manager extends CI_Controller
                 'MARKET_CANCELLED' => implode(",", $market_cancelled),
                 'MARKET_EDITED_PRICELIST' => make_market_price($market_edited_pricelist),
                 'REASON' => $cancel_reason
-            )
-        );
-//        redirect('ro_manager/approve/' . $order_id . '/' . $edit . '/' . $am_ro_id);
-        $response['Status'] = 'success';
-        $response['Message'] = 'Request Successful!!';
-        $response['Data'] = array();
-        $this->output
-            ->set_content_type('application/json')
-            ->set_status_header(200)
-            ->set_output(json_encode($response));
-        return;
+            );
+            $mailTemplateFileName   = "market_cancellation_request.html";
+            $emailServiceObj        = new EmailService($to);
+            log_message('info', 'In account_manager@post_cancel_markets | cancel_markets Email object initialised => ' . print_r($emailServiceObj, True));
+        
+            $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+            if($status){
+                $this->db->trans_complete();
+                log_message('info', 'In account_manager@post_cancel_markets | Mail sent successfully');
+                $httpcode = 200;
+                $response = array(
+                    'Status'=> 'success',
+                    'Message'=> 'Request Successful!!',
+                    'Data'=> array()
+                );
+            }else{
+                $this->db->trans_rollback();
+                $httpcode = 500;
+                log_message('info', 'In account_manager@post_cancel_markets | Mail could not sent successfully');
+                $response = array(
+                    'Status'=> 'fail',
+                    'Message'=> 'Something went wrong while sending cancellation mail.Request could not sent Successful!!',
+                    'Data'=> array()
+                );
+            }
+    
+            log_message('info', 'In account_manager@post_cancel_markets | Exiting ');
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header($httpcode)
+                ->set_output(json_encode($response));
+            return;
+        }catch(Exception $e){
+            log_message('ERROR', 'In account_manager@post_cancel_markets | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->db->trans_rollback();
+            log_message('info', 'In ro_manager@post_cancel_markets | Exiting');
+            $response = array(
+                'Status'=> 'fail',
+                'Message'=> 'Request could not sent Successful!!',
+                'Data'=> array()
+            );
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(500)
+                ->set_output(json_encode($response));
+            return;
+            
+        }
+       
     }
 
     public function invoice_collection($cust_ro)

@@ -262,6 +262,8 @@ class RO_manager extends CI_Controller
         $logged_in = $this->session->userdata("logged_in_user");
         $profile_id = $logged_in[0]['profile_id'];
 
+        $model['validation_errors'] = $this->session->flashdata('validation');
+        //approval_error
         $ros_with_pending_requests = $this->ro_model->ros_with_pending_requests();
         log_message('info','in ro_manager@pending_requests | ros_with_pending_requests '.print_r($ros_with_pending_requests,true));
         $total_rows = count($ros_with_pending_requests);
@@ -281,6 +283,7 @@ class RO_manager extends CI_Controller
 
         //$model['pending_requests'] = $ros_with_pending_requests;
         $model['page_links'] = create_page_links(base_url() . "/ro_manager/pending_requests", ITEM_PER_PAGE_USERS, $total_rows);
+        $model['approval_error'] = $this->session->flashdata('approval_error');
         log_message('info','in ro_manager@pending_requests | $model '.print_r($model,true));
         $this->load->view('ro_manager/pending_cancellation_requests', $model);
     }
@@ -986,48 +989,49 @@ class RO_manager extends CI_Controller
     //function to show Channel wise schedule of RO
 
     public function reject_request_for_cancellation()
-    {
-        $this->is_logged_in();
-        $this->db->trans_start();
-        $bh_reason = $this->input->post('reason_rej');
-        $am_ro_id = $this->input->post('hid_am_ro_id');
-        $status = $this->input->post('hid_status');
-        $cancel_type = $this->input->post('hid_cancel_type');
-        $cancel_id = $this->input->post('hid_cancel_id');
+    { 
+        try{
 
-        $this->ro_model->reject_request_for_cancellation($am_ro_id, $status, $cancel_type, $cancel_id, $bh_reason);
+            $this->is_logged_in();
+            log_message('info', 'In ro_manager@submit_ro_approve | Entered with arguments => ' . print_r($this->input->post(), True));
+            
+            $bh_reason      = $this->input->post('reason_rej');
+            $am_ro_id       = $this->input->post('hid_am_ro_id');
+            $status         = $this->input->post('hid_status');
+            $cancel_type    = $this->input->post('hid_cancel_type');
+            $cancel_id      = $this->input->post('hid_cancel_id');
 
-        //change status of ro by previos status
-        if ($cancel_type == 'cancel_ro' && $status == 2) {
-            $this->am_model->change_ro_status($am_ro_id);
-        }
+            $this->db->trans_start();
+            $this->ro_model->reject_request_for_cancellation($am_ro_id, $status, $cancel_type, $cancel_id, $bh_reason);
 
-        $where_data = array('am_ro_id' => $am_ro_id, 'cancel_id' => $cancel_id);
-        $user_data = array('approved_type' => $status);
+            //change status of ro by previos status
+            if ($cancel_type == 'cancel_ro' && $status == 2) {
+                $this->am_model->change_ro_status($am_ro_id);
+            }
 
-        if ($cancel_type == 'cancel_market' && $status == 2) {
-            $this->am_model->update_tmp_market($user_data, $where_data);
-        }
-        $this->db->trans_complete();
-        //Mail Intimation
-        $ro_details = $this->am_model->ro_detail_for_ro_id($am_ro_id);
-        $cancel_data = $this->am_model->get_data_from_cancel_ro(array('id' => $cancel_id));
-        $cancel_market_data = $this->ro_model->get_cancel_market_data(array('am_ro_id' => $am_ro_id, 'cancel_id' => $cancel_id, 'is_cancelled' => 1));
-        $cancelled_market_name = implode(",", convert_into_array($cancel_market_data, 'market'));
-        $edited_market_data = $this->ro_model->get_cancel_market_data(array('am_ro_id' => $am_ro_id, 'cancel_id' => $cancel_id));
+            $where_data = array('am_ro_id' => $am_ro_id, 'cancel_id' => $cancel_id);
+            $user_data = array('approved_type' => $status);
 
-        $to_user = implode(",", convert_into_array($this->user_model->get_bhs(), 'user_email'));
-        $account_mgr_email = implode(",", convert_into_array($this->user_model->get_user_detail_for_user_id($cancel_data[0]['user_id']), 'user_email'));
-        $scheduler_email = implode(",", convert_into_array($this->user_model->get_user_detail_for_profile(3), 'user_email'));
+            if ($cancel_type == 'cancel_market' && $status == 2) {
+                $this->am_model->update_tmp_market($user_data, $where_data);
+            }
+            
+            //Mail Intimation
+            $ro_details             = $this->am_model->ro_detail_for_ro_id($am_ro_id);
+            $cancel_data            = $this->am_model->get_data_from_cancel_ro(array('id' => $cancel_id));
+            $cancel_market_data     = $this->ro_model->get_cancel_market_data(array('am_ro_id' => $am_ro_id, 'cancel_id' => $cancel_id, 'is_cancelled' => 1));
+            $cancelled_market_name  = implode(",", convert_into_array($cancel_market_data, 'market'));
+            $edited_market_data     = $this->ro_model->get_cancel_market_data(array('am_ro_id' => $am_ro_id, 'cancel_id' => $cancel_id));
 
-        $cc_user = $account_mgr_email . "," . $scheduler_email;
-        //Market cancelletion Rejection
-        if ($cancel_type == 'cancel_market') {
-            email_send($to_user,
-                $cc_user,
-                "market_cancellation_reject",
-                array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
-                array(
+            $to_user                = implode(",", convert_into_array($this->user_model->get_bhs(), 'user_email'));
+            $account_mgr_email      = implode(",", convert_into_array($this->user_model->get_user_detail_for_user_id($cancel_data[0]['user_id']), 'user_email'));
+            $scheduler_email        = implode(",", convert_into_array($this->user_model->get_user_detail_for_profile(3), 'user_email'));
+            $cc_user                = $account_mgr_email . "," . $scheduler_email;
+            
+            //Market cancelletion Rejection
+            if ($cancel_type == 'cancel_market') {
+                $mailTemplateFileName   = "market_cancellation_reject.html";
+                $mailPlaceHolderValues  = array(
                     'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
                     'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
                     'CLIENT_NAME' => $ro_details[0]['client'],
@@ -1035,22 +1039,32 @@ class RO_manager extends CI_Controller
                     'MARKET_CANCELLED' => $cancelled_market_name,
                     'MARKET_EDITED_PRICELIST' => make_market_price_tmp($edited_market_data),
                     'REASON' => $cancel_data[0]['bh_reason']
-                )
-            );
-        }
+                );
+              /*  email_send($to_user,
+                    $cc_user,
+                    "market_cancellation_reject",
+                    array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
+                    array(
+                        'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
+                        'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'MARKET_CANCELLED' => $cancelled_market_name,
+                        'MARKET_EDITED_PRICELIST' => make_market_price_tmp($edited_market_data),
+                        'REASON' => $cancel_data[0]['bh_reason']
+                    )
+                );*/
+            }
 
-        sleep(5);
-        //Ro cancelletion Rejection
-        if ($cancel_type == 'cancel_ro') {
-            //commented by nitish to get campaign end date correct in Reject mail (2.9.8)
-            //$campaign_end_date = $this->ro_model->get_campaign_end_date_for_ro($ro_details[0]['internal_ro']) ;
-            $campaign_end_date = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
+         
 
-            email_send($to_user,
-                $cc_user,
-                "ro_cancellation_reject",
-                array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
-                array(
+            //Ro cancelletion Rejection
+            if ($cancel_type == 'cancel_ro') {
+                //commented by nitish to get campaign end date correct in Reject mail (2.9.8)
+                //$campaign_end_date = $this->ro_model->get_campaign_end_date_for_ro($ro_details[0]['internal_ro']) ;
+                $campaign_end_date      = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
+                $mailTemplateFileName   = "ro_cancellation_reject.html";
+                $mailPlaceHolderValues  = array(
                     'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
                     'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
                     'CLIENT_NAME' => $ro_details[0]['client'],
@@ -1059,122 +1073,208 @@ class RO_manager extends CI_Controller
                     'CANCEL_DATE' => $cancel_data[0]['date_of_cancel'],
                     'REASON' => $cancel_data[0]['bh_reason'],
                     'BILLING_INSTUCTION' => $cancel_data[0]['invoice_instruction']
-                )
+                );
+                /*email_send($to_user,
+                    $cc_user,
+                    "ro_cancellation_reject",
+                    array('EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro']),
+                    array(
+                        'EXTERNAL_RO_NUMBER' => $ro_details[0]['cust_ro'],
+                        'INTERNAL_RO_NUMBER' => $ro_details[0]['internal_ro'],
+                        'CLIENT_NAME' => $ro_details[0]['client'],
+                        'AGENCY_NAME' => $ro_details[0]['agency'],
+                        'CAMPAIGN_END_DATE' => $campaign_end_date,
+                        'CANCEL_DATE' => $cancel_data[0]['date_of_cancel'],
+                        'REASON' => $cancel_data[0]['bh_reason'],
+                        'BILLING_INSTUCTION' => $cancel_data[0]['invoice_instruction']
+                    )
+                );*/
+            }
+            $emailServiceObject = new EmailService($to_user, $cc_user);
+            $mailSent = $emailServiceObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues
             );
+            if (!$mailSent) {
+                log_message('ERROR', 'In ro_manager@reject_request_for_cancellation | Something went wrong while sending mail for rejecting ro number - ' . $ro_details[0]['cust_ro']);
+                $this->db->trans_rollback();
+                $this->session->set_flashdata('approval_reject_error', 'Something went wrong while sending the rejection mail for the RO.');
+               
+            }else{
+                $this->db->trans_complete();
+                log_message('info', 'In ro_manager@reject_request_for_cancellation | transaction complete');              
+            } 
+            log_message('info', 'In ro_manager@reject_request_for_cancellation | Exiting');
+            redirect("/ro_manager/pending_requests");
+            
+        }catch(Exception $e){
+            log_message('ERROR', 'In ro_manager@reject_request_for_cancellation | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->db->trans_rollback();
+            $this->session->set_flashdata('approval_reject_error', 'Something went wrong while rejecting the RO.');
+            log_message('info', 'In ro_manager@reject_request_for_cancellation | Exiting');
+            redirect("/ro_manager/pending_requests");
         }
-
-        echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
+        
     }
 
     public function submit_ro_approve($am_ro_id, $status, $cancel_type, $cancel_id)
     {
-        $this->db->trans_start();
-        //Used for RO approval request and raising request for schedule approval
-        log_message('DEBUG', 'In ro_manager@submit_ro_approve | Transaction Started');
-        $this->is_logged_in();
-        $logged_in = $this->session->userdata("logged_in_user");
+        try{
+            $this->is_logged_in();
+            $logged_in = $this->session->userdata("logged_in_user");
+            if($logged_in != NULL || $logged_in != 'NULL'){
 
-        $where_data = array(
-            'ext_ro_id' => $am_ro_id,
-            'cancel_type' => $cancel_type,
-            'id' => $cancel_id
-        );
+                log_message('info', 'In ro_manager@submit_ro_approve | Entered with arguments => ' . print_r(func_get_args(), True));
+                $roDetails  = $this->createExtRoFeatureObj->getRoDetailsForRoId($am_ro_id);
+                if(count($roDetails) > 0){
+                    $userDetails    = $this->createExtRoFeatureObj->getUserNameForUserId($roDetails[0]['user_id']);
+                    $brandNames     = $this->createExtRoFeatureObj->getBrandNames($roDetails[0]['brand']);
 
-        $update_data = array(
-            'cancel_ro_by_admin' => $status
-        );
+                    $retRoApprovedData = $this->ro_approval($roDetails,$userDetails,$status, $cancel_type, $cancel_id,$brandNames);
+                    if(!$retRoApprovedData['gotError']){
+                        $retRoApprovedNotifyData = $this->ro_approval_notify($roDetails,$userDetails,$brandNames);
+                        if($retRoApprovedNotifyData['gotError']){
+                            $this->session->set_flashdata('approval_error', $retRoApprovedNotifyData['data']['msg']);
+                            log_message('ERROR', 'In ro_manager@submit_ro_approve | Error found while notifying  => ' . print_r($retRoApprovedNotifyData['data']['msg'], True));
+                        }
+                    }else{
+                        $this->session->set_flashdata('approval_error', $retRoApprovedData['data']['msg']);
+                        log_message('ERROR', 'In ro_manager@submit_ro_approve | Error found while ro being approved  => ' . print_r($retRoApprovedData['data']['msg'], True));
 
-        //update status
-        $this->am_model->update_cancelled_data($update_data, $where_data);
-
-        $where = array(
-            'ro_id' => $am_ro_id,
-            'mail_type' => 'submit_ro_approval'
-        );
-        $get_mail_details = $this->ro_model->getMailForRo($where);
-        $request_emails = $get_mail_details[0]['cc_email_id'];
-
-        $emails = $this->user_model->userEmailForRoApproval($logged_in[0]['user_id']);
-
-        $roDetails = $this->createExtRoFeatureObj->getRoDetailsForRoId($am_ro_id);
-        log_message('INFO', 'In ro_manager@submit_ro_approve | RO data - ' . print_r($roDetails, true));
-        if ($logged_in[0]['profile_id'] != 11) {
-            $RID = $roDetails[0]['region_id'];
-            $RdMail = $this->createExtRoFeatureObj->getRdMailRegionWise($RID, $logged_in[0]['is_test_user']);
-            $emails = $emails . "," . $RdMail['user_email'];
-        }
-
-        $cc_email_list = $request_emails . "," . $emails;
-        $get_request_details = $this->am_model->is_cancel_request_sent_by_am($where_data);
-
-        $submittedBy_ro_user_id = $get_request_details[0]['user_id'];
-
-        $user_data = array(
-            'ext_ro_id' => $am_ro_id,
-            'cancel_type' => 'ro_approval',
-            'user_id' => $logged_in[0]['user_id'],
-            'date_of_submission' => date('Y-m-d'),
-            'date_of_cancel' => date('Y-m-d', strtotime("+2 day")),
-            'reason' => 'None',
-            'invoice_instruction' => 'Approved by ' . $logged_in[0]['user_name'],
-            'ro_amount' => 0,
-            'approval_level' => 4,
-            'cancel_ro_by_admin' => 0
-        );
-
-        //insert row(request) for schedule approval
-        $this->am_model->insert_into_cancel_market($user_data);
-
-        $to_email = $this->user_model->getUserDetailOfUserReportingManager($submittedBy_ro_user_id);
-        $rep_man = $to_email[0]['user_email'];
-        $cc_emails = $cc_email_list . "," . $rep_man;
-        $userData = array(
-            'mail_status' => 1,
-            'cc_email_id' => $cc_emails,
-            'mail_sent_date' => date('Y-m-d'),
-            'mail_sent' => 1
-        );
-        //update ro mail details
-        $this->ro_model->updateMailForRo($userData, array('ro_id' => $am_ro_id, 'mail_type' => 'submit_ro_approval'));
-
-        //======================== REMOVED CRON EXECUTION PART 4 <MAIL> =================================//
-
-        $emailDetails = $this->createExtRoFeatureObj->getMailData($am_ro_id);
-        log_message('INFO', 'In ro_manager@submit_ro_approve | Email data for sending RO approved mail - ' . print_r(array($emailDetails[0]['user_email_id'], $cc_emails), true));
-
-        $brandNames = $this->createExtRoFeatureObj->getBrandNames($roDetails[0]['brand']);
-        $userDetails = $this->createExtRoFeatureObj->getUserNameForUserId($roDetails[0]['user_id']);
-        $mailType = unserialize(MAIL_TYPE);
-        $makeGoodType1 = unserialize(MAKE_GOOD_TYPE);
-        $makeGoodType = $roDetails[0]['make_good_type'];
-
-        //Files for email
-        $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
-        if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
-            $fileDocumentPath = "/opt/lampp/htdocs/";
-        }
-        $actualPathLocation = $fileDocumentPath . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
-
-        log_message('DEBUG', 'In ro_manager@submit_ro_approve | Preparing RO and CLIENT MAIL attachment file location');
-        $allFiles = '';
-        $ro_parts = pathinfo($roDetails[0]['file_path']);
-        $client_parts = pathinfo($roDetails[0]['client_approval_mail']);
-
-        if($ro_parts['basename'] != '' && !empty($ro_parts['basename'])){
-            $allFiles = $actualPathLocation . $ro_parts['basename'];
-            if($client_parts['basename'] != '' && !empty($client_parts['basename'])) {
-                $allFiles = $allFiles . ',' . $actualPathLocation . $client_parts['basename'];
+                    }
+                }else{
+                    $this->session->set_flashdata('approval_error', 'No Record found against this RO');
+                    log_message('ERROR', 'In ro_manager@submit_ro_approve | No records found against ro id => ' . print_r($am_ro_id, True));
+                }
+            }else{
+                $this->session->set_flashdata('approval_error', 'You are not logged in.');
+                log_message('ERROR', 'In ro_manager@submit_ro_approve | You are not logged in');
             }
-        }else if($client_parts['basename'] != '' && !empty($client_parts['basename'])){
-            $allFiles = $actualPathLocation . $client_parts['basename'];
-        }
-        log_message('INFO', 'In ro_manager@submit_ro_approve | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($allFiles, true));
+            redirect("/ro_manager/pending_requests");
 
-        $emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $cc_emails);
-        $mailSent = $emailServiceObject->sendMail(
-            $mailType['APPROVE_EXT_RO'],
-            array('EXTERNAL_RO' => $roDetails[0]['cust_ro']),
-            array('AM_NAME' => $userDetails[0]['user_name'],
+        }catch(Exception $e){
+            log_message('ERROR', 'In ro_manager@submit_ro_approve | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->session->set_flashdata('approval_error', ' OOPS something went wrong.');
+            redirect("/ro_manager/pending_requests");
+        }
+        
+    }
+    private function ro_approval($roDetails,$userDetails,$status, $cancel_type, $cancel_id,$brandNames){
+        try{
+            
+            //Used for RO approval request and raising request for schedule approval
+            log_message('info', 'In ro_manager@ro_approval | Entered with arguments => ' . print_r(func_get_args(), True));
+            
+            $this->is_logged_in();
+            $logged_in = $this->session->userdata("logged_in_user");
+            log_message('info', 'In ro_manager@ro_approval | loggedin user details  => ' . print_r($logged_in, True));
+            $am_ro_id = $roDetails[0]['id'];
+            
+            $this->db->trans_start();
+            $where_data = array(
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => $cancel_type,
+                'id' => $cancel_id
+            );
+
+            $update_data = array(
+                'cancel_ro_by_admin' => $status
+            );
+            log_message('info', 'In ro_manager@ro_approval | where array before updating status => ' . print_r($where_data,true));
+            log_message('info', 'In ro_manager@ro_approval | update_data array before updating status => ' . print_r($update_data,true));
+            //update status
+            $this->am_model->update_cancelled_data($update_data, $where_data);
+
+            $where = array(
+                'ro_id' => $am_ro_id,
+                'mail_type' => 'submit_ro_approval'
+            );
+            log_message('info', 'In ro_manager@ro_approval | where array before fetching from ro_mail => ' . print_r($where,true));
+            $get_mail_details   = $this->ro_model->getMailForRo($where);
+            log_message('DEBUG', 'In ro_manager@ro_approval | data from ro_mail => ' . print_r($get_mail_details,true));
+            $request_emails     = $get_mail_details[0]['cc_email_id'];
+
+            $emails = $this->user_model->userEmailForRoApproval($logged_in[0]['user_id']);
+            log_message('info', 'In ro_manager@ro_approval | emails are => ' . print_r($emails,true));
+            //$roDetails = $this->createExtRoFeatureObj->getRoDetailsForRoId($am_ro_id);
+            //log_message('INFO', 'In ro_manager@ro_approval | RO data - ' . print_r($roDetails, true));
+            if ($logged_in[0]['profile_id'] != 11) {
+                $RID = $roDetails[0]['region_id'];
+                $RdMail = $this->createExtRoFeatureObj->getRdMailRegionWise($RID, $logged_in[0]['is_test_user']);
+                log_message('info', 'In ro_manager@ro_approval | rd emails are => ' . print_r($RdMail,true));
+                $emails = $emails . "," . $RdMail['user_email'];
+            }
+
+            $cc_email_list          = $request_emails . "," . $emails;
+            $get_request_details    = $this->am_model->is_cancel_request_sent_by_am($where_data);
+
+            log_message('info', 'In ro_manager@ro_approval | request details are => ' . print_r($get_request_details,true));
+            $submittedBy_ro_user_id = $get_request_details[0]['user_id'];
+
+            $user_data = array(
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => 'ro_approval',
+                'user_id' => $logged_in[0]['user_id'],
+                'date_of_submission' => date('Y-m-d'),
+                'date_of_cancel' => date('Y-m-d', strtotime("+2 day")),
+                'reason' => 'None',
+                'invoice_instruction' => 'Approved by ' . $logged_in[0]['user_name'],
+                'ro_amount' => 0,
+                'approval_level' => 4,
+                'cancel_ro_by_admin' => 0
+            );
+            log_message('info', 'In ro_manager@ro_approval | user data is => ' . print_r($user_data,true));
+
+            /** now check whether you already have and entry in ro_cancel_external_ro table before inserting . 
+             * This check is needed when lets say approval mail or approval mail didnt deliever to neither to client 
+             * nor to us , then we can run this api either from cli or browser independetly after rectifying the error.
+             */
+            
+            $checkData = array(
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => 'ro_approval'
+            );
+            $actionOnROData = $this->am_model->get_data_from_cancel_ro($checkData);
+            if(count($actionOnROData) > 0 ){
+                $this->am_model->update_cancelled_data($user_data, $checkData);
+                
+            }else{
+                $this->am_model->insert_into_cancel_market($user_data);
+            }
+
+            
+
+            $to_email   = $this->user_model->getUserDetailOfUserReportingManager($submittedBy_ro_user_id);
+            log_message('info', 'In ro_manager@ro_approval | to email is  => ' . print_r($to_email,true));
+            $rep_man    = $to_email[0]['user_email'];
+            $cc_emails  = $cc_email_list . "," . $rep_man;
+            $userData   = array(
+                'mail_status' => 1,
+                'cc_email_id' => $cc_emails,
+                'mail_sent_date' => date('Y-m-d'),
+                'mail_sent' => 1
+            );
+            log_message('info', 'In ro_manager@ro_approval | printing ro_mail userDataArray  => ' . print_r($userData,true));
+            //update ro mail details
+            $this->ro_model->updateMailForRo($userData, array('ro_id' => $am_ro_id, 'mail_type' => 'submit_ro_approval'));
+
+            //======================== REMOVED CRON EXECUTION PART 4 <MAIL> =================================//
+
+            $emailDetails = $this->createExtRoFeatureObj->getMailData($am_ro_id);
+            log_message('INFO', 'In ro_manager@ro_approval | Email data for sending RO approved mail - ' . print_r(array($emailDetails[0]['user_email_id'], $cc_emails), true));
+
+            //$brandNames = $this->createExtRoFeatureObj->getBrandNames($roDetails[0]['brand']);
+            //$userDetails = $this->createExtRoFeatureObj->getUserNameForUserId($roDetails[0]['user_id']);
+            $mailType       = unserialize(MAIL_TYPE);
+            $makeGoodType1  = unserialize(MAKE_GOOD_TYPE);
+            $makeGoodType   = $roDetails[0]['make_good_type'];
+
+            //Files for email
+            $s3FilesAttachedArr = array($roDetails[0]['file_path'] , $roDetails[0]['client_approval_mail']);
+            log_message('INFO', 'In ro_manager@ro_approval | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($s3FilesAttachedArr, true));
+
+            $mailTemplateFileName = $mailType['APPROVE_EXT_RO'].".html";
+            $mailPlaceHolderValues = array('AM_NAME' => $userDetails[0]['user_name'],
                 'EXTERNAL_RO' => $roDetails[0]['cust_ro'],
                 'INTERNAL_RO' => $roDetails[0]['internal_ro'],
                 'AGENCY' => $roDetails[0]['agency'],
@@ -1185,199 +1285,280 @@ class RO_manager extends CI_Controller
                 'INSTRUCTION' => $roDetails[0]['spcl_inst'],
                 'START_DATE' => $roDetails[0]['camp_start_date'],
                 'END_DATE' => $roDetails[0]['camp_end_date'],
-            ),
-            $allFiles
-        );
-        if (!$mailSent) {
-            log_message('INFO', 'Mail was not sent for RO - ' . $roDetails[0]['cust_ro']);
-            $this->ro_model->updateMailForRo(array('mail_sent' => 0), array('ro_id' => $am_ro_id));
-        } else {
-            //Deleting files from local server as RO has been approved
-            if ($allFiles != '') {
-                $filesToDelete = explode(",", $allFiles);
-                foreach ($filesToDelete as $deleteFile) {
-                    if (unlink($deleteFile)) {
-                        log_message('INFO', 'In ro_manager@submit_ro_approve | File Deleted - ' . print_r($deleteFile, true));
-                    } else {
-                        log_message('INFO', 'In ro_manager@submit_ro_approve | File Not Deleted - ' . print_r($deleteFile, true));
+            );
+            $emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $cc_emails);
+            $mailSent = $emailServiceObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues,
+                $s3FilesAttachedArr
+            );
+            if (!$mailSent) {
+                log_message('ERROR', 'In ro_manager@ro_approval | Mail was not sent for RO - ' . $roDetails[0]['cust_ro']);
+                $this->db->trans_rollback();
+                log_message('info', 'In ro_manager@ro_approval | Exiting');
+                return array('gotError'=>true,'data'=>array('msg'=>'Something went wrong while sending mail after approving the Ro.')); 
+                //$this->ro_model->updateMailForRo(array('mail_sent' => 0), array('ro_id' => $am_ro_id));
+            } else {
+                 //update RO status
+                $this->am_model->update_ro_status($am_ro_id, 'scheduling_in_progress');
+                $this->db->trans_complete();
+
+                //Deleting files from local server as RO has been approved
+                $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
+                if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
+                    $fileDocumentPath = "/opt/lampp/htdocs/";
+                }
+                $actualPathLocation = $fileDocumentPath . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
+
+                log_message('DEBUG', 'In ro_manager@ro_approval | Preparing RO and CLIENT MAIL attachment file location');
+                $allFiles = '';
+                $ro_parts = pathinfo($roDetails[0]['file_path']);
+                $client_parts = pathinfo($roDetails[0]['client_approval_mail']);
+
+                if($ro_parts['basename'] != '' && !empty($ro_parts['basename'])){
+                    $allFiles = $actualPathLocation . $ro_parts['basename'];
+                    if($client_parts['basename'] != '' && !empty($client_parts['basename'])) {
+                        $allFiles = $allFiles . ',' . $actualPathLocation . $client_parts['basename'];
+                    }
+                }else if($client_parts['basename'] != '' && !empty($client_parts['basename'])){
+                    $allFiles = $actualPathLocation . $client_parts['basename'];
+                }
+                if ($allFiles != '') {
+                    $filesToDelete = explode(",", $allFiles);
+                    foreach ($filesToDelete as $deleteFile) {
+                        if (unlink($deleteFile)) {
+                            log_message('INFO', 'In ro_manager@ro_approval | File Deleted - ' . print_r($deleteFile, true));
+                        } else {
+                            log_message('INFO', 'In ro_manager@ro_approval | File Not Deleted , may be file is not present - ' . print_r($deleteFile, true));
+                        }
                     }
                 }
+                log_message('info', 'In ro_manager@ro_approval | Exiting');
+                return array('gotError'=>false,'data'=>array());
             }
+            
+        }catch(Exception $e){
+            log_message('ERROR', 'In ro_manager@ro_approval | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->db->trans_rollback();
+            log_message('info', 'In ro_manager@ro_approval | Exiting');
+            return array('gotError'=>true,'data'=>array('msg'=>'Ro cannot be approved.')); 
         }
-        //update RO status
-        $this->am_model->update_ro_status($am_ro_id, 'scheduling_in_progress');
-
-        //========================REMOVED AUTOMATED CRON FOR SENDING MAIL TO CLIENT AND AGENCY==============================================//
-
-        log_message('INFO', 'In ro_manager@submit_ro_approve | Sending External Mail to Agency and Client');
-        $logMessageArray = array();
-        $ccMailListArray = $this->mg_model->getCCMailIdList($roDetails[0]['id']);
-
-        $toEmailList = $roDetails[0]['order_history_mail_list'];
-        $ccEmailList = $ccMailListArray[0]["ccMailId"];
-        $campaignStartDate = $roDetails[0]['camp_start_date'];
-        $campaignEndDate = $roDetails[0]['camp_end_date'];
-        $userName = $userDetails[0]['user_name'];
-        $userPhone = $userDetails[0]['user_phone'];
-        $userProfileImage = $userDetails[0]['profile_image'];
-        $clientName = $roDetails[0]['client'];
-
-        if (empty($userProfileImage)) {
-            $userProfileImage = base_url('images/ro_progress/final_revised/phone.png');
-        }
-        $subjectRoNumber = str_replace(" ", "_", $roDetails[0]['cust_ro']);
-        array_push($logMessageArray, $roDetails[0]['id'], $campaignStartDate, $campaignEndDate, $userName, $userPhone, $subjectRoNumber);
-
-        $RoNumber = "<span style='font-weight:bold;font-size: 89.5%;'>" . $subjectRoNumber . "</span>";
-        $AcMangerName = "<span style='font-weight:bold;font-size: 89%;'>" . $userName . "</span>";
-        $AcMangerNumber = "<span style='font-weight:bold;font-size: 89%;'>" . $userPhone . "</span>";
-
-        //------------------------ Preparing Email Data------------------------------------------------------------//
-        $marketDataArray = $this->mg_model->getBookedRoMarketData($roDetails[0]['id']);
-        array_push($logMessageArray, array("markets" => $marketDataArray));
-        $marketDataTable = $this->buildMarketDataTableForSubmitMail($marketDataArray);
-
-        $greetingsHeading = "Thank you for your order!";
-        $greetingsHeadingNextLine = "This email confirms that your RO number " . $RoNumber . " is now booked.";
-        $bodyHeader = "Please find below, the summary of your order:";
-        $nextStepText = "We'll send you an email once your order is scheduled.";
-        $queryText = "Please get in touch, for any support.";
-        $contact = $AcMangerName . ' - ( ' . $AcMangerNumber . " )";
-
-        $mailType = unserialize(MAIL_TYPE);
-        $subject = array("BOOKED" => "Order booked - $subjectRoNumber ");
-        $message = array(
-            "HEAD_TEAXTURE" => base_url('images/ro_progress/final_revised/head-texture.png'),
-            "LOGO" => base_url('images/ro_progress/final_revised/surewaves-logo.png'),
-            "BLUE" => base_url('images/ro_progress/final_revised/blue-1.jpg'),
-            "MAIL" => base_url('images/ro_progress/final_revised/mail.png'),
-            "PHONE" => $userProfileImage,
-
-            "GREETINGS_HEADING" => $greetingsHeading,
-            "GREETINGS_HEADING_NEXT_LINE" => $greetingsHeadingNextLine,
-            "BODY_HEADER" => $bodyHeader,
-            "DATA_TABLE" => $marketDataTable,
-            "NEXT_STEP_TEXT" => $nextStepText,
-            "QUERY_TEXT" => $queryText,
-            "CONTACT" => $contact,
-            "CLIENT_NAME" => $clientName,
-            "BRAND_NAME" => $brandNames
-        );
-
-        $emailServiceObject = new EmailService($toEmailList, $ccEmailList);
-        $mailSent = $emailServiceObject->sendMail($mailType['RO_PROGRESS_ORDER_BOOKED'], $subject, $message, '');
-
-        $this->mg_model->insertRoProgressionMailLog($roDetails[0]['id'], "Order booked", "Order booked - $subjectRoNumber ", $toEmailList, $ccEmailList, json_encode($logMessageArray));
-
-        if (!$mailSent) {
-            $setData = array('submit_status' => 'submitted');
-        } else {
-            $setData = array('submit_status' => 'mail_sent');
-        }
-        $this->mg_model->updateProgressionEmaiLStatus($setData, $roDetails[0]['id']);
-
-        //==================================================================================================================================//
-        $this->db->trans_complete();
-        log_message('DEBUG', 'In ro_manager@submit_ro_approve | Transaction Completed. Redirecting to Pending Request');
-        redirect("/ro_manager/pending_requests");
+        
     }
+    private function ro_approval_notify($roDetails,$userDetails,$brandNames){
+        try{
+            $this->db->trans_start();
+            log_message('info', 'In ro_manager@ro_approval_notify | Entered with arguments => ' . print_r(func_get_args(), True));
+            //log_message('INFO', 'In ro_manager@submit_ro_approve | Sending External Mail to Agency and Client');
+            $logMessageArray = array();
+            $ccMailListArray = $this->mg_model->getCCMailIdList($roDetails[0]['id']);
+            log_message('info', 'In ro_manager@ro_approval_notify | mail cc list from ro id => ' . print_r($ccMailListArray, True));
 
+            $toEmailList        = $roDetails[0]['order_history_mail_list'];
+            $ccEmailList        = $ccMailListArray[0]["ccMailId"];
+            $campaignStartDate  = $roDetails[0]['camp_start_date'];
+            $campaignEndDate    = $roDetails[0]['camp_end_date'];
+            $userName           = $userDetails[0]['user_name'];
+            $userPhone          = $userDetails[0]['user_phone'];
+            $userProfileImage   = $userDetails[0]['profile_image'];
+            $clientName         = $roDetails[0]['client'];
+
+            if (empty($userProfileImage)) {
+                $userProfileImage = base_url('images/ro_progress/final_revised/phone.png');
+            }
+            $subjectRoNumber = str_replace(" ", "_", $roDetails[0]['cust_ro']);
+            $marketDataArray = $this->mg_model->getBookedRoMarketData($roDetails[0]['id']);
+            array_push($logMessageArray, $roDetails[0]['id'], $campaignStartDate, $campaignEndDate, $userName, $userPhone, $subjectRoNumber , array("markets" => $marketDataArray));
+
+            log_message('info', 'In ro_manager@ro_approval_notify | logMessageArray => ' . print_r($logMessageArray, True));
+
+            //------------------------ Preparing Email Data------------------------------------------------------------//
+            
+            //array_push($logMessageArray, array("markets" => $marketDataArray));
+            $RoNumber           = "<span style='font-weight:bold;font-size: 89.5%;'>" . $subjectRoNumber . "</span>";
+            $AcMangerName       = "<span style='font-weight:bold;font-size: 89%;'>" . $userName . "</span>";
+            $AcMangerNumber     = "<span style='font-weight:bold;font-size: 89%;'>" . $userPhone . "</span>";
+            $marketDataTable    = $this->buildMarketDataTableForSubmitMail($marketDataArray);
+
+            $greetingsHeading   = "Thank you for your order!";
+            $greetingsHeadingNextLine = "This email confirms that your RO number " . $RoNumber . " is now booked.";
+            $bodyHeader         = "Please find below, the summary of your order:";
+            $nextStepText       = "We'll send you an email once your order is scheduled.";
+            $queryText          = "Please get in touch, for any support.";
+            $contact            = $AcMangerName . ' - ( ' . $AcMangerNumber . " )";
+
+            $mailType = unserialize(MAIL_TYPE);
+            $subject = array("BOOKED" => "Order booked - $subjectRoNumber ");
+            $message = array(
+                "HEAD_TEAXTURE" => base_url('images/ro_progress/final_revised/head-texture.png'),
+                "LOGO" => base_url('images/ro_progress/final_revised/surewaves-logo.png'),
+                "BLUE" => base_url('images/ro_progress/final_revised/blue-1.jpg'),
+                "MAIL" => base_url('images/ro_progress/final_revised/mail.png'),
+                "PHONE" => $userProfileImage,
+
+                "GREETINGS_HEADING" => $greetingsHeading,
+                "GREETINGS_HEADING_NEXT_LINE" => $greetingsHeadingNextLine,
+                "BODY_HEADER" => $bodyHeader,
+                "DATA_TABLE" => $marketDataTable,
+                "NEXT_STEP_TEXT" => $nextStepText,
+                "QUERY_TEXT" => $queryText,
+                "CONTACT" => $contact,
+                "CLIENT_NAME" => $clientName,
+                "BRAND_NAME" => $brandNames
+            );
+            $mailTemplateFileName   = $mailType['RO_PROGRESS_ORDER_BOOKED'].".html";
+            $mailPlaceHolderValues  = array_merge($subject,$message);
+            $emailServiceObject     = new EmailService($toEmailList, $ccEmailList);
+            $mailSent   = $emailServiceObject->sendMailOverApi(
+                    $mailTemplateFileName,
+                    $mailPlaceHolderValues
+            );
+            
+            $this->db->trans_start();
+            
+
+            if (!$mailSent) {
+                $retArray = array('gotError'=>true,'data'=>array('msg'=>'Something went wrong while sending approved RO mail to clients.')); 
+                $setData  = array('submit_status' => 'submitted');
+            } else {
+                $this->mg_model->insertRoProgressionMailLog($roDetails[0]['id'], "Order booked", "Order booked - $subjectRoNumber ", $toEmailList, $ccEmailList, json_encode($logMessageArray));
+                $retArray = array('gotError'=>false,'data'=>array());
+                $setData = array('submit_status' => 'mail_sent');
+            }
+            $this->mg_model->updateProgressionEmaiLStatus($setData, $roDetails[0]['id']);
+            $this->db->trans_complete();
+            log_message('info', 'In ro_manager@ro_approval_notify | Exiting');
+            return $retArray;
+
+        }catch(Exception $e){
+            log_message('ERROR', 'In ro_manager@ro_approval_notify | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->db->trans_rollback();
+            log_message('info', 'In ro_manager@ro_approval_notify | Exiting');
+            return array('gotError'=>true,'data'=>array('msg'=> $e->getMessage())); 
+        }
+        
+        
+        
+    }
     public function submit_ro_forward($am_ro_id, $status, $cancel_type, $cancel_id)
     {
-        $this->db->trans_start();
-        log_message('DEBUG', 'In ro_manager@submit_ro_forward | Transaction Started');
-        log_message('DEBUG', 'In ro_manager@sumbit_ro_forward | Email forwarding for - ' . print_r(array('RO_Id' => $am_ro_id, 'Cancel Type' => $cancel_type, '' => $cancel_id), true));
-        //Used for forwarding a RO approval request to upper level for approval
-
-        $this->is_logged_in();
-        $logged_in = $this->session->userdata("logged_in_user");
-
-        $where_data = array(
-            'ext_ro_id' => $am_ro_id,
-            'cancel_type' => $cancel_type,
-            'id' => $cancel_id
-        );
-        $get_request_details = $this->am_model->is_cancel_request_sent_by_am($where_data);
-        log_message('DEBUG','In ro_manager@sumbit_ro_forward | Get Request Details -> '.print_r($get_request_details,True));
-        $approval_level = $get_request_details[0]['approval_level'];
-        $new_approval_level = $approval_level + 1;
-
-        $update_data = array(
-            'cancel_ro_by_admin' => 3,
-            'approval_level' => $new_approval_level
-        );
-        log_message('DEBUG','In ro_manager@sumbit_ro_forward | Approval Level -> '.print_r($new_approval_level,True));
-
-        //update status
-        $this->am_model->update_cancelled_data($update_data, $where_data);
-        log_message('DEBUG','In ro_manager@sumbit_ro_forward | Updated in ro_cancel_external_ro');
-
-        $emails = $this->user_model->userEmailForRoCreation($logged_in[0]['user_id']);
-
-        $whereData = array(
-            'ro_id' => $am_ro_id
-        );
-
-        $userData = array(
-            'mail_status' => 3,
-            'approval_level' => $new_approval_level,
-            'cc_email_id' => $emails,
-            'mail_sent_date' => date('Y-m-d'),
-            'mail_sent' => 1
-        );
-        //update ro mail details
-        $this->ro_model->updateMailForRo($userData, $whereData);
-        log_message('DEBUG','In ro_manager@sumbit_ro_forward | ro_mail Updated data is -> '.print_r($userData,True));
-
-        //======================== REMOVED CRON EXECUTION PART 3 <MAIL> =================================//
-
-        $emailDetails = $this->createExtRoFeatureObj->getMailData($am_ro_id);
-        log_message('INFO', 'In ro_manager@submit_ro_forward | Email data for sending RO forwarded mails - ' . print_r(array($emailDetails, $emails), true));
-
-        $roDetails = $this->createExtRoFeatureObj->getRoDetailsForRoId($am_ro_id);
-        log_message('INFO', 'In ro_manager@submit_ro_forward | RO data - ' . print_r($roDetails, true));
-
-        $forwardedTo = '';
-        if ($new_approval_level == 2) {
-            $forwardedTo = "National Head";
-        } else if ($new_approval_level == 3) {
-            $forwardedTo = "Business Head";
-        }
-        log_message('DEBUG','In ro_manager@submit_ro_forward | ForwardedTo value is '.print_r($forwardedTo,true));
-
-        $brandNames = $this->createExtRoFeatureObj->getBrandNames($roDetails[0]['brand']);
-        $amName = $this->createExtRoFeatureObj->getUserNameForUserId($roDetails[0]['user_id']);
-        $mailType = unserialize(MAIL_TYPE);
-        $makeGoodType1 = unserialize(MAKE_GOOD_TYPE);
-        $makeGoodType = $roDetails[0]['make_good_type'];
-
-        //Files for email
-        $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
-        if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
-            $fileDocumentPath = "/opt/lampp/htdocs/";
-        }
-        $actualPathLocation = $fileDocumentPath . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
-
-        log_message('DEBUG', 'In ro_manager@submit_ro_forward | Preparing RO and CLIENT MAIL attachment file location');
-        $allFiles = '';
-        $ro_parts = pathinfo($roDetails[0]['file_path']);
-        $client_parts = pathinfo($roDetails[0]['client_approval_mail']);
-
-        if($ro_parts['basename'] != '' && !empty($ro_parts['basename'])){
-            $allFiles = $actualPathLocation . $ro_parts['basename'];
-            if($client_parts['basename'] != '' && !empty($client_parts['basename'])) {
-                $allFiles = $allFiles . ',' . $actualPathLocation . $client_parts['basename'];
+        try{
+            log_message('info', 'In ro_manager@submit_ro_forward | Entered with arguments => ' . print_r(func_get_args(), True));
+            $this->db->trans_start();
+            log_message('DEBUG', 'In ro_manager@submit_ro_forward | Transaction Started');
+            log_message('DEBUG', 'In ro_manager@sumbit_ro_forward | Email forwarding for - ' . print_r(array('RO_Id' => $am_ro_id, 'Cancel Type' => $cancel_type, '' => $cancel_id), true));
+            //Used for forwarding a RO approval request to upper level for approval
+    
+            $this->is_logged_in();
+            $logged_in = $this->session->userdata("logged_in_user");
+    
+            $where_data = array(
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => $cancel_type,
+                'id' => $cancel_id
+            );
+            $get_request_details = $this->am_model->is_cancel_request_sent_by_am($where_data);
+            log_message('DEBUG','In ro_manager@sumbit_ro_forward | Get Request Details -> '.print_r($get_request_details,True));
+            $approval_level = $get_request_details[0]['approval_level'];
+            $new_approval_level = $approval_level + 1;
+    
+            $update_data = array(
+                'cancel_ro_by_admin' => 3,
+                'approval_level' => $new_approval_level
+            );
+            log_message('DEBUG','In ro_manager@sumbit_ro_forward | Approval Level -> '.print_r($new_approval_level,True));
+    
+            //update status
+            $this->am_model->update_cancelled_data($update_data, $where_data);
+            log_message('DEBUG','In ro_manager@sumbit_ro_forward | Updated in ro_cancel_external_ro');
+    
+            $emails = $this->user_model->userEmailForRoCreation($logged_in[0]['user_id']);
+    
+            $whereData = array(
+                'ro_id' => $am_ro_id
+            );
+    
+            $userData = array(
+                'mail_status' => 3,
+                'approval_level' => $new_approval_level,
+                'cc_email_id' => $emails,
+                'mail_sent_date' => date('Y-m-d'),
+                'mail_sent' => 1
+            );
+            //update ro mail details
+            $this->ro_model->updateMailForRo($userData, $whereData);
+            log_message('DEBUG','In ro_manager@sumbit_ro_forward | ro_mail Updated data is -> '.print_r($userData,True));
+    
+            //======================== REMOVED CRON EXECUTION PART 3 <MAIL> =================================//
+    
+            $emailDetails = $this->createExtRoFeatureObj->getMailData($am_ro_id);
+            log_message('INFO', 'In ro_manager@submit_ro_forward | Email data for sending RO forwarded mails - ' . print_r(array($emailDetails, $emails), true));
+    
+            $roDetails = $this->createExtRoFeatureObj->getRoDetailsForRoId($am_ro_id);
+            log_message('INFO', 'In ro_manager@submit_ro_forward | RO data - ' . print_r($roDetails, true));
+    
+            $forwardedTo = '';
+            if ($new_approval_level == 2) {
+                $forwardedTo = "National Head";
+            } else if ($new_approval_level == 3) {
+                $forwardedTo = "Business Head";
             }
-        }else if($client_parts['basename'] != '' && !empty($client_parts['basename'])){
-            $allFiles = $actualPathLocation . $client_parts['basename'];
-        }
-        log_message('INFO', 'In ro_manager@submit_ro_forward | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($allFiles, true));
+            log_message('DEBUG','In ro_manager@submit_ro_forward | ForwardedTo value is '.print_r($forwardedTo,true));
+    
+            $brandNames = $this->createExtRoFeatureObj->getBrandNames($roDetails[0]['brand']);
+            $amName = $this->createExtRoFeatureObj->getUserNameForUserId($roDetails[0]['user_id']);
+            $mailType = unserialize(MAIL_TYPE);
+            $makeGoodType1 = unserialize(MAKE_GOOD_TYPE);
+            $makeGoodType = $roDetails[0]['make_good_type'];
+    
+            //Files for email
+          /*  $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
+            if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
+                $fileDocumentPath = "/opt/lampp/htdocs/";
+            }
+            $actualPathLocation = $fileDocumentPath . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
+    
+            log_message('DEBUG', 'In ro_manager@submit_ro_forward | Preparing RO and CLIENT MAIL attachment file location');
+            $allFiles = '';
+            $ro_parts = pathinfo($roDetails[0]['file_path']);
+            $client_parts = pathinfo($roDetails[0]['client_approval_mail']);
+    
+            if($ro_parts['basename'] != '' && !empty($ro_parts['basename'])){
+                $allFiles = $actualPathLocation . $ro_parts['basename'];
+                if($client_parts['basename'] != '' && !empty($client_parts['basename'])) {
+                    $allFiles = $allFiles . ',' . $actualPathLocation . $client_parts['basename'];
+                }
+            }else if($client_parts['basename'] != '' && !empty($client_parts['basename'])){
+                $allFiles = $actualPathLocation . $client_parts['basename'];
+            }
+            */
 
-        $emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $emails);
-        $mailSent = $emailServiceObject->sendMail(
-            $mailType['FORWARD_EXT_RO'],
-            array('EXTERNAL_RO' => $roDetails[0]['cust_ro']),
-            array('AM_NAME' => $amName[0]['user_name'],
+            /*log_message('INFO', 'In ro_manager@submit_ro_forward | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($allFiles, true));
+    
+            $emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $emails);
+            $mailSent = $emailServiceObject->sendMail(
+                $mailType['FORWARD_EXT_RO'],
+                array('EXTERNAL_RO' => $roDetails[0]['cust_ro']),
+                array('AM_NAME' => $amName[0]['user_name'],
+                    'EXTERNAL_RO' => $roDetails[0]['cust_ro'],
+                    'INTERNAL_RO' => $roDetails[0]['internal_ro'],
+                    'AGENCY' => $roDetails[0]['agency'],
+                    'CLIENT' => $roDetails[0]['client'],
+                    'BRAND' => $brandNames,
+                    'MAKEGOOD_TYPE' => $makeGoodType1[$makeGoodType],
+                    'MARKET' => $roDetails[0]['market'],
+                    'INSTRUCTION' => $roDetails[0]['spcl_inst'],
+                    'START_DATE' => $roDetails[0]['camp_start_date'],
+                    'END_DATE' => $roDetails[0]['camp_end_date'],
+                    'FORWARDED_TO' => $forwardedTo
+                ),
+                $allFiles
+            );*/
+            $s3FilesAttachedArr = array($roDetails[0]['file_path'] , $roDetails[0]['client_approval_mail']);
+            log_message('INFO', 'In ro_manager@ro_approval | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($s3FilesAttachedArr, true));
+
+            $mailTemplateFileName = $mailType['FORWARD_EXT_RO'].".html";
+            $mailPlaceHolderValues = array('AM_NAME' => $amName[0]['user_name'],
                 'EXTERNAL_RO' => $roDetails[0]['cust_ro'],
                 'INTERNAL_RO' => $roDetails[0]['internal_ro'],
                 'AGENCY' => $roDetails[0]['agency'],
@@ -1389,16 +1570,31 @@ class RO_manager extends CI_Controller
                 'START_DATE' => $roDetails[0]['camp_start_date'],
                 'END_DATE' => $roDetails[0]['camp_end_date'],
                 'FORWARDED_TO' => $forwardedTo
-            ),
-            $allFiles
         );
-        if (!$mailSent) {
-            log_message('INFO', 'Mail was not sent for RO - ' . $roDetails[0]['cust_ro']);
-            $this->ro_model->updateMailForRo(array('mail_sent' => 0), $whereData);
+            $emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $emails);
+            $mailSent = $emailServiceObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues,
+                $s3FilesAttachedArr
+            );
+            if (!$mailSent) {
+                $this->db->trans_rollback();
+                $this->session->set_flashdata('approval_error', 'Something went wrong while sending the forward RO mail..');
+                log_message('ERROR', 'In ro_manager@submit_ro_forward | forward Mail was could not sent for RO - ' . $roDetails[0]['cust_ro']);
+                //$this->ro_model->updateMailForRo(array('mail_sent' => 0), $whereData);
+            }
+            $this->db->trans_complete();
+            log_message('INFO', 'In ro_manager@submit_ro_forward | Transaction Completed. Redirecting to pending requests ');
+            redirect("/ro_manager/pending_requests");
+
+        }catch(Exception $e){
+            log_message('ERROR', 'In ro_manager@submit_ro_forward | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->db->trans_rollback();
+            $this->session->set_flashdata('approval_error', 'Something went wrong while forwarding the ro.');
+            log_message('INFO', 'In ro_manager@submit_ro_forward | Exiting');
+            redirect("/ro_manager/pending_requests");
         }
-        $this->db->trans_complete();
-        log_message('DEBUG', 'In ro_manager@submit_ro_forward | Transaction Completed. Redirecting to pending requests ');
-        redirect("/ro_manager/pending_requests");
+       
     }
 
     //user logout function

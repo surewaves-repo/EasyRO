@@ -2011,7 +2011,7 @@ class Cron_job extends CI_Controller
         $logMessageArray = array();
 
         $roId = $dataArray['ro_id'];
-        $userId = $dataArray['user_id'];
+       // $userId = $dataArray['user_id'];
         $ccMailListArray = $this->mg_model->getCCMailIdList($roId);
 
         $toEmailList = $dataArray['order_history_mail_list'];
@@ -2078,12 +2078,16 @@ class Cron_job extends CI_Controller
                 "BRAND_NAME" => $brandName
             );
 
-            $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
-            $this->mg_model->insertRoProgressionMailLog($roId, "Order booked", "Order booked - $subjectRoNumber ", $toEmailList, "", json_encode($logMessageArray));
+            $mailStatus = $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
+            if($mailStatus){
+                $this->mg_model->insertRoProgressionMailLog($roId, "Order booked", "Order booked - $subjectRoNumber ", $toEmailList, "", json_encode($logMessageArray));
+                $setData = array('submit_status' => 'mail_sent');
+                $this->mg_model->updateProgressionEmaiLStatus($setData, $roId);
+            }
+            
 
 //            $setData = " SET submit_status = 'mail_sent' ";
-            $setData = array('submit_status' => 'mail_sent');
-            $this->mg_model->updateProgressionEmaiLStatus($setData, $roId);
+            
 
         } else if ($type == APPROVED) {
 
@@ -2117,7 +2121,7 @@ class Cron_job extends CI_Controller
                 "CONTACT" => $contact
             );
 
-            $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
+            $mailStatus = $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
             $this->mg_model->insertRoProgressionMailLog($roId, "Order Scheduled", "Order Scheduled - $subjectRoNumber ", $toEmailList, $ccEmailList, json_encode($logMessageArray));
 
 //            $setData = " SET approved_status = 'mail_sent' ";
@@ -2160,7 +2164,7 @@ class Cron_job extends CI_Controller
                 "CONTACT" => $contact
             );
 
-            $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
+            $mailStatus = $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
             $this->mg_model->insertRoProgressionMailLog($roId, "Order now playing", "Order now playing - $subjectRoNumber ", $toEmailList, "", json_encode($logMessageArray));
 
 //            $setData = " SET campaign_start_status = 'mail_sent' ";
@@ -2206,7 +2210,7 @@ class Cron_job extends CI_Controller
                 "CONTACT" => $contact
             );
 
-            $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
+            $mailStatus = $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
             $this->mg_model->insertRoProgressionMailLog($roId, "Order Complete", "Order Complete - $subjectRoNumber ", $toEmailList, "", json_encode($logMessageArray));
 
 //            $setData = " SET campaign_end_status = 'mail_sent' ";
@@ -2246,7 +2250,7 @@ class Cron_job extends CI_Controller
                 "CONTACT" => $contact
             );
 
-            $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
+            $mailStatus = $this->sendRoProgressMail($toEmailList, $ccEmailList, $emailTextKey, $message, $subject);
             $this->mg_model->insertRoProgressionMailLog($roId, "Order about to complete", "Order about to complete - $subjectRoNumber ", $toEmailList, "", json_encode($logMessageArray));
 
 //            $setData = " SET campaign_preclousure_status = 'mail_sent' ";
@@ -2334,13 +2338,24 @@ class Cron_job extends CI_Controller
 
     private function sendRoProgressMail($sendToList, $ccEmailList, $emailTextKey, $message, $subject)
     {
+        log_message('info', 'In cron_job@sendRoProgressMail | Entered with arguments => ' . print_r(func_get_args(), True));
         $staticEmails = $this->getStaticMails('ro_progress_email');
-        email_send_bcc($sendToList, $ccEmailList, $staticEmails, $emailTextKey, $subject, $message);
+        log_message('info', 'In cron_job@sendRoProgressMail | staticEmails => ' . print_r($staticEmails, True));
+       // email_send_bcc($sendToList, $ccEmailList, $staticEmails, $emailTextKey, $subject, $message);
+        $mailTemplateFileName    = $emailTextKey.".html";
+        $mailPlaceHolderValues   = array_merge($subject,$message);
+        $emailServiceObject      = new EmailService($sendToList, $ccEmailList,$staticEmails);
+       
+        $mailSent = $emailServiceObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues
+            );
 
-        echo '<pre>';
-        echo "Sending Mail------->" . $sendToList . "  " . $emailTextKey;
+       // echo '<pre>';
+       // echo "Sending Mail------->" . $sendToList . "  " . $emailTextKey;
+       //if($mailSent)
 
-        return 1;
+        return $mailSent;
 
     }
 
@@ -2890,6 +2905,8 @@ class Cron_job extends CI_Controller
 
     public function MailSentForRo($mail_type_val)
     {
+        log_message('info', 'In cron_job@MailSentForRo | Entered with arguments => ' . print_r(func_get_args(), True));
+
         if (isset($mail_type_val) && !empty($mail_type_val)) {
             $mailData = $this->ro_model->getMailForRo(array('mail_sent' => 0, 'mail_type' => $mail_type_val));
         } else {
@@ -3069,7 +3086,7 @@ class Cron_job extends CI_Controller
                 switch ($val['mail_status']) {
                     //When the RO is submitted
                     case 0:
-                        mail_send_v1($val['user_email_id'],
+                      /*  mail_send_v1($val['user_email_id'],
                             'create_non_fct_ro',
                             array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
                             array(
@@ -3084,14 +3101,31 @@ class Cron_job extends CI_Controller
                             $val['cc_email_id'],
                             '',
                             ''
+                        );*/
+                        $mailPlaceHolderValues =    array( 'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                            'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                            'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                            'AGENCY' => $roDetail[0]['agency'],
+                            'CLIENT' => $roDetail[0]['client'],
+                            'INSTRUCTION' => $roDetail[0]['description']
                         );
-
-                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                        $mailTemplateFileName   = "create_non_fct_ro.html";
+                        $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
+                        log_message('info', 'In cron_job@MailSentForRo | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
+                        $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+                        if($status){
+                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is submitted and exiting  MailSentForRo function');
+                        }else{
+                            $this->ro_model->updateMailForRo(array('mail_sent' => 0, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is submitted but mail got failed and exiting  MailSentForRo function');
+                        }
+                        
                         break;
 
                     //When RO is approved
                     case 1:
-                        mail_send_v1($val['user_email_id'],
+                       /* mail_send_v1($val['user_email_id'],
                             'approve_non_fct_ro',
                             array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
                             array(
@@ -3108,11 +3142,33 @@ class Cron_job extends CI_Controller
                             ''
                         );
                         $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                        break;*/
+
+                        $mailPlaceHolderValues =    array(
+                            'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                            'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                            'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                            'AGENCY' => $roDetail[0]['agency'],
+                            'CLIENT' => $roDetail[0]['client'],
+                            'INSTRUCTION' => $roDetail[0]['description']
+                        );
+                        $mailTemplateFileName   = "approve_non_fct_ro.html";
+                        $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
+                        log_message('info', 'In cron_job@MailSentForRo | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
+                        $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+                        if($status){
+                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is approved and exiting  MailSentForRo function');
+                        }else{
+                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is approved but mail got failed and exiting  MailSentForRo function');
+                        }
                         break;
+
 
                     //When RO is Rejected
                     case 2:
-                        mail_send_v1($val['user_email_id'],
+                        /*mail_send_v1($val['user_email_id'],
                             'reject_non_fct_ro',
                             array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
                             array(
@@ -3129,7 +3185,28 @@ class Cron_job extends CI_Controller
                             ''
                         );
                         $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                        break;*/
+                        $mailPlaceHolderValues =    array(
+                            'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                            'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                            'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                            'AGENCY' => $roDetail[0]['agency'],
+                            'CLIENT' => $roDetail[0]['client'],
+                            'INSTRUCTION' => $roDetail[0]['description']
+                        );
+                        $mailTemplateFileName   = "reject_non_fct_ro.html";
+                        $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
+                        log_message('info', 'In cron_job@MailSentForRo | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
+                        $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+                        if($status){
+                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is rejected and exiting  MailSentForRo function');
+                        }else{
+                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is rejected but mail got failed and exiting  MailSentForRo function');
+                        }
                         break;
+
                 }
             } else if ($mail_type == 'channel_performance') {
                 $givenDate = date('Y-m-d');
@@ -3150,25 +3227,26 @@ class Cron_job extends CI_Controller
                     $from_number_of_days = "-1";
                     $to_number_of_days = "-1";
                     //$mail_key = "channel_performance_weekly";
-			$mail_key = "channel_performance_monthly" ;
+			        $mail_key = "channel_performance_monthly" ;
                     //$this->generateChannelSummaryReport($from_number_of_days,$to_number_of_days,$to_mail_id,$cc_mail_id,$mail_key) ;
                 }
                 $this->generateChannelSummaryReport($from_number_of_days, $to_number_of_days, $to_mail_id, $cc_mail_id, $mail_key, $duration);
                 $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('mail_type' => 'channel_performance'));
             } else if ($mail_type == 'cancel_ro_requested') {
-                $ro_id = $val['ro_id'];
-                $to_email = $val['user_email_id'];
-                $cc = $val['cc_email_id'];
-                $ro_details = $this->am_model->ro_detail_for_ro_id($ro_id);
-                $external_ro = $ro_details[0]['cust_ro'];
-                $client_name = $ro_details[0]['client'];
-                $agency_name = $ro_details[0]['agency'];
-                $campaign_end_date = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
-                $cancelled_data = $this->am_model->get_cancelled_data(array('cancel_type' => 'cancel_ro', 'ext_ro_id' => $ro_id));
-                $user_id = $cancelled_data[0]['user_id'];
-                $userName = $this->am_model->get_user_name($user_id);
+                log_message('info', 'In cron_job@MailSentForRo | cancel_ro_requested flow started. ');
+                $ro_id              = $val['ro_id'];
+                $to_email           = $val['user_email_id'];
+                $cc                 = $val['cc_email_id'];
+                $ro_details         = $this->am_model->ro_detail_for_ro_id($ro_id);
+                $external_ro        = $ro_details[0]['cust_ro'];
+                $client_name        = $ro_details[0]['client'];
+                $agency_name        = $ro_details[0]['agency'];
+                $campaign_end_date  = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
+                $cancelled_data     = $this->am_model->get_cancelled_data(array('cancel_type' => 'cancel_ro', 'ext_ro_id' => $ro_id));
+                $user_id            = $cancelled_data[0]['user_id'];
+                $userName           = $this->am_model->get_user_name($user_id);
 
-                mail_send_v1($to_email,
+                /*mail_send_v1($to_email,
                     "am_cancel_ext_ro",
                     array('EXTERNAL_RO' => $external_ro),
                     array(
@@ -3184,8 +3262,29 @@ class Cron_job extends CI_Controller
                     '',
                     $cc,
                     '',
-                    '');
-                $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('ro_id' => $ro_id, 'mail_type' => 'cancel_ro_requested'));
+                    '');*/
+                $mailPlaceHolderValues = array(
+                        'ACCOUNT_MGR_NAME' => $userName[0]['user_name'],
+                        'EXTERNAL_RO' => $external_ro,
+                        'CLIENT_NAME' => $client_name,
+                        'AGENCY_NAME' => $agency_name,
+                        'CAMPAIGN_END_DATE' => $campaign_end_date,
+                        'RO_CANCEL_DATE' => $cancelled_data[0]['date_of_cancel'],
+                        'CANCEL_REASON' => $cancelled_data[0]['reason'],
+                        'BILLING_INSTRUCTION' => $cancelled_data[0]['invoice_instruction'],
+                    );
+                $mailTemplateFileName   = "am_cancel_ext_ro.html";
+                $emailServiceObj        = new EmailService($to_email,$cc);
+                log_message('info', 'In cron_job@MailSentForRo | Email object initialised => ' . print_r($emailServiceObj, True));
+                
+                $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+                if($status){
+                    $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('ro_id' => $ro_id, 'mail_type' => 'cancel_ro_requested'));
+                    log_message('info', 'In cron_job@MailSentForRo | RO cancellation request mail sent and exiting  MailSentForRo function');
+                }else{
+                    $this->ro_model->updateMailForRo(array('mail_sent' => 0, 'mail_sent_date' => date('Y-m-d')), array('ro_id' => $ro_id, 'mail_type' => 'cancel_ro_requested'));
+                    log_message('info', 'In cron_job@MailSentForRo | RO cancellation request mail didnt sent and exiting  MailSentForRo function');
+                }
             }
         }
     }

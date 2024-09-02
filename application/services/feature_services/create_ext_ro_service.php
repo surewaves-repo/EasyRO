@@ -96,6 +96,7 @@ class CreateExtRoService
         $RoFilePath = $this->fileUploadForRo($userId);
         if ($RoFilePath == false) {
             log_message('INFO', 'In CreateExtRoService@CreateExtRo | RO Attachment not uploaded. Rolling back database');
+            $this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
             return array('Status' => 'fail', 'Message' => 'RO Attachment Upload Failed!', 'Data' => array());
         }
 
@@ -219,10 +220,11 @@ class CreateExtRoService
             $netContributionPercent = $this->getApproximateNetContribution($approvalData, $marketData, $roData);
             $this->createExtRoFeatureObj->updateNetContributionPercent($netContributionPercent, $lastROInsertedId);
 
-            $pdfAttachmentParts = pathinfo($RoFilePath);
-            $clientPdfBaseName = $pdfAttachmentParts['basename'];
-            $fileActualPath = $_SERVER['DOCUMENT_ROOT'] . "surewaves_easy_ro/" . 'easy_ro_temp_pdf/' . $clientPdfBaseName;
-
+           /* This code was commented  by Biswa on 28th Aug 2024 and will work if files are locally present rather than s3.
+                $pdfAttachmentParts = pathinfo($RoFilePath);
+                $clientPdfBaseName = $pdfAttachmentParts['basename'];
+                $fileActualPath = $_SERVER['DOCUMENT_ROOT'] . "surewaves_easy_ro/" . 'easy_ro_temp_pdf/' . $clientPdfBaseName;
+            */
             $userData = array(
                 'ro_id' => $lastROInsertedId,
                 'submit_status' => 'created'
@@ -247,22 +249,10 @@ class CreateExtRoService
             log_message('DEBUG', 'In CreateExtRoService@createExtRo | Preparing Email data');
 //            $ccEmailId = $emailData . "," . $mailReportingManagerDetails[0]['user_email'] . "," . $staticEmails;
             $ccEmailId = $emailData . "," . $mailReportingManagerDetails[0]['user_email'];
-            $data = array(
-                'ro_id' => $lastROInsertedId,
-                'mail_type' => 'submit_ro_approval',
-                'mail_status' => 0,
-                'approval_level' => $approvalLevel,
-                'user_email_id' => $loggedIn[0]['user_email'],
-                'cc_email_id' => $ccEmailId,
-                'file_name' => $fileActualPath,
-                'mail_sent_date' => date('Y-m-d'),
-                'mail_sent' => 1
-            );
-
-            $lastMailInsertedId = $this->createExtRoFeatureObj->insertMailData($data);
-            log_message('INFO', 'In CreateExtRoService@createExtRo | Email record inserted successfully with last insert id - ' . print_r($lastMailInsertedId, true));
+            
             // ===================== REMOVED CRON EXECUTION PART 2 <MAIL> ===================== //
 
+          /*  This code was commented  by Biswa on 28th Aug 2024 and will work if files are locally present rather than s3.
             $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
             if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
                 $fileDocumentPath = "/opt/lampp/htdocs/";
@@ -274,6 +264,7 @@ class CreateExtRoService
             $mailAttachmentParts = pathinfo($clientApprovalEmail);
             $clientMailBaseName = $mailAttachmentParts['basename'];
 
+             
             $allFiles = '';
             if($clientPdfBaseName != '' && !empty($clientPdfBaseName)){
                 $allFiles = $actualPathLocation . $clientPdfBaseName;
@@ -283,17 +274,34 @@ class CreateExtRoService
             }else if($clientMailBaseName != '' && !empty($clientMailBaseName)){
                 $allFiles = $actualPathLocation . $clientMailBaseName;
             }
-            log_message('INFO', 'In CreateExtRoService@createExtRo | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($allFiles, true));
+            */
+            /**
+             * @$s3AttachedFiles variable stores the s3 file paths 
+             */
+            $s3AttachedFiles = $clientApprovalEmail .",".$RoFilePath;
+            $data = array(
+                'ro_id' => $lastROInsertedId,
+                'mail_type' => 'submit_ro_approval',
+                'mail_status' => 0,
+                'approval_level' => $approvalLevel,
+                'user_email_id' => $loggedIn[0]['user_email'],
+                'cc_email_id' => $ccEmailId,
+                'file_name' => $s3AttachedFiles,
+                'mail_sent_date' => date('Y-m-d'),
+                'mail_sent' => 1
+            );
+
+            $lastMailInsertedId = $this->createExtRoFeatureObj->insertMailData($data);
+            log_message('INFO', 'In CreateExtRoService@createExtRo | Email record inserted successfully with last insert id - ' . print_r($lastMailInsertedId, true));
+            log_message('INFO', 'In CreateExtRoService@createExtRo | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($s3AttachedFiles, true));
 
             $brandNames = $this->createExtRoFeatureObj->getBrandNames($brand);
             $mailType = unserialize(MAIL_TYPE);
             $makeGoodType1 = unserialize(MAKE_GOOD_TYPE);
             log_message('DEBUG', 'In CreateExtRoService@createExtRo | Calculating email type and makeGood type - ' . print_r(array('emailType' => $mailType['CREATE_EXT_RO'], 'makeGoodType' => $makeGoodType1[$makeGoodType]), true));
-
-            $emailObject = new EmailService($loggedIn[0]['user_email'], $ccEmailId);
-            $mailSent = $emailObject->sendMail(
-                $mailType['CREATE_EXT_RO'],
-                array('EXTERNAL_RO' => $custRo),
+            /* array_merge(
+                array('EXTERNAL_RO' => $custRo),*/
+            $mailPlaceHolderValues  = 
                 array('AM_NAME' => $loggedIn[0]['user_name'],
                     'EXTERNAL_RO' => $custRo,
                     'INTERNAL_RO' => $internalRoNo,
@@ -305,8 +313,13 @@ class CreateExtRoService
                     'INSTRUCTION' => $spclInst,
                     'START_DATE' => $campStartDate,
                     'END_DATE' => $campEndDate
-                ),
-                $allFiles
+                );
+            $mailTemplateFileName = $mailType['CREATE_EXT_RO'].".html";
+            $emailObject = new EmailService($loggedIn[0]['user_email'], $ccEmailId);
+            $mailSent = $emailObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues,
+                explode(",",$s3AttachedFiles)
             );
             if (!$mailSent) {
                 log_message('INFO', 'Mail was not sent for RO - ' . $custRo);
