@@ -886,7 +886,7 @@ class CI_Email
         $this->_set_header('X-Priority', $this->_priorities[$this->priority - 1]);
         $this->_set_header('Message-ID', $this->_get_message_id());
         $this->_set_header('Mime-Version', '1.0');
-	$this->_set_header('X-SES-CONFIGURATION-SET', 'EasyROMailConfigSet');
+	$this->_set_header('X-SES-CONFIGURATION-SET', 'MailForSurewaves');
 	$this->_set_header('X-SES-MESSAGE-TAGS', 'mail=easyro');
     }
 
