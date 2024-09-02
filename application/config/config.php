@@ -14,7 +14,7 @@
 | path to your installation.
 |
 */
-$config['base_url'] = 'http://easyro.surewaves.com/surewaves_easy_ro';
+$config['base_url'] = 'https://test-easyro.surewaves.com/surewaves_easy_ro';
 
 /*
 |--------------------------------------------------------------------------
