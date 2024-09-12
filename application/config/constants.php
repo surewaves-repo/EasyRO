@@ -58,7 +58,7 @@ define('OPS_SUPPORT_EMAIL','support@surewaves.com') ;
 define('ADV_NW_RO_EMAIL', 'biswabijayee@surewaves.com');
 define('AMAZON_KEY', "10W51DTTBDR9TBACB3G2");
 define('AMAZON_VALUE', "p5wWY/7HQcEzcXK5A45PqSm0ghy0Yfpqtkk3LrMm");
-define('NETWORK_RO_BUCKET', "sw_easy_ro");
+
 define('S3_BUCKET', "ad-ingester-content-test");
 define("BUCKET_URL", "https://s3.amazonaws.com/ad-ingester-content-test/");
 define('MEMCACHE_HOST', '127.0.0.1');
@@ -128,7 +128,7 @@ define('BR_MAPPING_MAIL', 'biswabijayee@surewaves.com,gagana@surewaves.com');
  * Yash Bansal
  */
 define('ACL_PUBLIC_READ', 'public-read');
-define('Ro_Bucket', 'sw_easy_ro_am_pdf');
+
 
 /**
  * Ravishankar Singh 2019-09-09
@@ -164,11 +164,21 @@ define('MAKE_GOOD_TYPE',
 define('DATE_OF_CHANNEL_CANCEL', date("Y-m-d", strtotime("+2 day")));
 define('THIRD_PARTY_AWS_URL', 'https://ehs.mediagrid.surewaves.com');
 define('SOURCE_OF_API_CALL' , 'EasyRO');
+define('THIRD_PARTY_AWS_URL_S3', 'https://fhs.mediagrid.surewaves.com');
 define('FROM_EMAIL' , serialize(array(
     'from_email_name' => 'SureWaves Support',
     'from_email_id' => 'RO-support@surewaves.com'
 )));
-
+//define('NETWORK_RO_BUCKET', "sw_easy_ro");
+//define('Ro_Bucket', 'sw_easy_ro_am_pdf');
+define('NETWORK_RO' , [
+    'BUCKET_NAME' => 'easyro',
+    'FOLDER_PATH' => 'network_ro'
+]);
+define('EXTERNAL_RO' , [
+    'BUCKET_NAME' => 'easyro',
+    'FOLDER_PATH' => 'external_ro'
+]);
 
 
 /* End of file constants.php */

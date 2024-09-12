@@ -28,7 +28,7 @@ class CreateExtRoService
         $this->CI = &get_instance();
         $this->CI->load->library('session');
         $this->createExtRoFeatureObj = new CreateExtRoFeature();
-        $this->s3Obj = new S3UploadService(Ro_Bucket);
+        $this->s3Obj = new S3UploadService(EXTERNAL_RO);
     }
 
     /**
@@ -96,7 +96,9 @@ class CreateExtRoService
         $RoFilePath = $this->fileUploadForRo($userId);
         if ($RoFilePath == false) {
             log_message('INFO', 'In CreateExtRoService@CreateExtRo | RO Attachment not uploaded. Rolling back database');
-            $this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
+            //$this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
+            $status = $this->s3Obj-> deleteFileOverApi(pathinfo($clientApprovalEmail)['basename']);
+            log_message('DEBUG', 'In CreateExtRoService@createExtRo | status of deleting client email s3 object  - '.print_r($status, true));
             return array('Status' => 'fail', 'Message' => 'RO Attachment Upload Failed!', 'Data' => array());
         }
 
@@ -333,9 +335,12 @@ class CreateExtRoService
             DB::rollBack();
             log_message('DEBUG', 'In CreateExtRoService@createExtRo | Database Rolled Back successfully!  Now Deleting email attachments.');
 
-            $this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
-            $this->s3Obj->deleteFile(pathinfo($RoFilePath)['basename']);
-
+            //$this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
+            $statusForDeletingClientEmailS3Obj = $this->s3Obj->deleteFileOverApi(pathinfo($clientApprovalEmail)['basename']);
+            log_message('DEBUG', 'In CreateExtRoService@createExtRo | status statusForDeletingClientEmailS3Obj - '.print_r($statusForDeletingClientEmailS3Obj, true));
+            //$this->s3Obj->deleteFile(pathinfo($RoFilePath)['basename']);
+            $statusForDeletingRoS3Obj = $this->s3Obj->deleteFileOverApi(pathinfo($RoFilePath)['basename']);
+            log_message('DEBUG', 'In CreateExtRoService@createExtRo | status statusForDeletingRoS3Obj - '.print_r($statusForDeletingRoS3Obj, true));
             return array('Status' => 'fail', 'Message' => 'Database exception occurred!', 'Data' => array());
         }
     }
@@ -408,6 +413,8 @@ class CreateExtRoService
     /**
      * Author: Yash
      * Date: September,2019
+     * Modified by Biswa 
+     * 10th Sept 2024
      *
      * @param $fileName
      * @return bool
@@ -417,16 +424,19 @@ class CreateExtRoService
         log_message('DEBUG', 'In CreateExtRoService@uploadOntoS3 | ');
 
         $filePath = $_SERVER['DOCUMENT_ROOT'] . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/' . $fileName;
-        $status = $this->s3Obj->uploadFile($filePath, $fileName);
-
-        if ($status == True) {
+        //$status = $this->s3Obj->uploadFile($filePath, $fileName);
+        $retArr = $this->s3Obj->uploadFileOverApi($filePath, $fileName);
+       
+        if ($retArr['status'] == True) {
             log_message('INFO', 'In CreateExtRoService@uploadOntoS3 | File Uploaded successfully');
-            return $this->s3Obj->generateURL($fileName);
+            //return $this->s3Obj->generateURL($fileName);
+            return $retArr['s3Url'];
         } else {
             log_message('INFO', 'In CreateExtRoService@uploadOntoS3 | File Upload failed');
             return false;
         }
     }
+    
 
     /**
      * Author: Yash

@@ -35,7 +35,7 @@ class GenerateRoPdfService
     {
         $this->CI = &get_instance();
         $this->htmlToPdfServiceObj  = new HtmlToPdfService();
-        $this->s3FileUploadObj      = new S3UploadService(NETWORK_RO_BUCKET);
+        $this->s3FileUploadObj      = new S3UploadService(NETWORK_RO);
        // $this->emailObj             = new EmailService();
         $this->featureObj           = new GenerateRoPdfFeature();
     }
@@ -646,11 +646,14 @@ class GenerateRoPdfService
                 $filePathbreak = explode("/", $eachFilePath);
                 $eachFileName = $filePathbreak[count($filePathbreak) - 1];
 
-                $status = $this->s3FileUploadObj->uploadFile($eachFilePath, $eachFileName);
+                //$status = $this->s3FileUploadObj->uploadFile($eachFilePath, $eachFileName);
+                $retArr = $this->s3FileUploadObj->uploadFileOverApi($eachFilePath, $eachFileName);
                 log_message('info','In GenerateRoPdfService@uploadPdfToS3 | After uploading to s3 , the status is' . print_r($status, True));
-                if ($status == True) {
+                //if ($status == True) {
+                if ($retArr['status'] == True) {
                     log_message('INFO', 'In GenerateRoPdfService@uploadPdfToS3 | Pdf File Uploaded successfully');
-                     array_push($pdfS3Urls , $this->s3FileUploadObj->generateURL($eachFileName));
+                     //array_push($pdfS3Urls , $this->s3FileUploadObj->generateURL($eachFileName));
+                     array_push($pdfS3Urls , $retArr['s3Url']);
                 } else {
                     log_message('INFO', 'In GenerateRoPdfService@uploadPdfToS3 | File Upload failed');
                     return false;

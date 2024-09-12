@@ -30,7 +30,7 @@ class UpdateExtRoService
         $this->CI = &get_instance();
         $this->CI->load->library('session');
         $this->createExtRoFeatureObj = new CreateExtRoFeature();
-        $this->s3Obj = new S3UploadService(Ro_Bucket);
+        $this->s3Obj = new S3UploadService(EXTERNAL_RO);
     }
 
     /**
@@ -104,7 +104,9 @@ class UpdateExtRoService
             $RoFilePath = $this->fileUploadForRo($userId);
             if ($RoFilePath == false) {
                 log_message('INFO', 'In UpdateExtRoService@UpdateExtRo | RO Attachment not uploaded. Rolling back database');
-                $this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
+                //$this->s3Obj->deleteFile(pathinfo($clientApprovalEmail)['basename']);
+                $status = $this->s3Obj->deleteFileOverApi(pathinfo($clientApprovalEmail)['basename']);
+                log_message('DEBUG', 'In UpdateExtRoService@UpdateExtRo | status of deleting client email s3 object  - '.print_r($status, true));
                 return array('Status' => 'fail', 'Message' => 'RO Attachment Upload Failed!', 'Data' => array());
             }
         } else {
@@ -326,7 +328,7 @@ class UpdateExtRoService
         log_message('DEBUG', 'In UpdateExtRoService@uploadOntoS3 | ');
 
         $filePath = $_SERVER['DOCUMENT_ROOT'] . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/' . $fileName;
-        $status = $this->s3Obj->uploadFile($filePath, $fileName);
+        /*$status = $this->s3Obj->uploadFile($filePath, $fileName);
 
         if ($status == True) {
             log_message('INFO', 'In UpdateExtRoService@uploadOntoS3 | File Uploaded successfully');
@@ -334,7 +336,18 @@ class UpdateExtRoService
         } else {
             log_message('INFO', 'In UpdateExtRoService@uploadOntoS3 | File Upload failed');
             return false;
-        }
+        }*/
+        
+         $retArr = $this->s3Obj->uploadFileOverApi($filePath, $fileName);
+       
+         if ($retArr['status'] == True) {
+             log_message('INFO', 'In UpdateExtRoService@uploadOntoS3 | File Uploaded successfully');
+             //return $this->s3Obj->generateURL($fileName);
+             return $retArr['s3Url'];
+         } else {
+             log_message('INFO', 'In CreateExtRoService@uploadOntoS3 | File Upload failed');
+             return false;
+         }
     }
 
     public function getApprovalLevel($profileId)

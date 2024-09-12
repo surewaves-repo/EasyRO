@@ -5,6 +5,7 @@ class EmailService
 {
     private $to;
     private $cc;
+    private $bcc;
 
     public function __construct($to = '', $cc = '', $bcc = '')
     {
@@ -112,66 +113,68 @@ class EmailService
     {
         log_message('info', 'In EmailService@sendMailOverApi | Entered with arguments => ' . print_r(func_get_args(), True));
       	$target_url = THIRD_PARTY_AWS_URL.'/api/EmailService/GenerateAndSendEmail';
-  // 	$target_url = 'http://54.179.131.174:8080/api/EmailService/GenerateAndSendEmail';
-	echo $target_url;
-	//log_message('info', 'In EmailService@sendMailOverApi | the url is ' . $target_url);
-//        $paramObj = new stdClass();
-//	echo "hey there";
+        //log_message('info', 'In EmailService@sendMailOverApi | url is  => ' . print_r($target_url, True));
+	    //echo $target_url;
+	
         // Add properties to the object
-	$paramObj = new \stdClass();
+	    $paramObj = new \stdClass();
         $paramObj->source       = SOURCE_OF_API_CALL ;
         $paramObj->templateName = $mailTemplateName;
         $paramObj->attachment   = $files;
-//	echo "<pre>";print_r($paramObj);       
+        //	echo "<pre>";print_r($paramObj);       
         if(empty($fromEmailId)){
             $retFromEmailSettings = $this->getDefaultFromEmailSettings();
             $fromEmailId    = $retFromEmailSettings['from_email_id'];
             $fromEmailName  = $retFromEmailSettings['from_email_name'];
         }
-	$this->to = array('biswabijayee@surewaves.com');
-	$this->cc = array('deepak.vg@surewaves.com');
-	$this->bcc = array();
+	    //$this->to = array('biswabijayee@surewaves.com');
+	    //$this->cc = array('deepak.vg@surewaves.com');
+	    //$this->bcc = array();
+        //$this->bcc = '';
+        $this->to = 'biswabijayee@surewaves.com';
+        $this->cc = '';
+        $this->bcc = 'deepak.vg@surewaves.com';
+
+
         $paramObj->mail             = new \stdClass();
         $paramObj->mail->from       = $fromEmailId;
         $paramObj->mail->fromName   = $fromEmailName;
-        $paramObj->mail->to         = $this->to;
-        $paramObj->mail->cc         = $this->cc;
-        $paramObj->mail->bcc        = $this->bcc;
+        $paramObj->mail->to         = explode(",",$this->to);
+        $paramObj->mail->cc         = explode(",",$this->cc);
+        $paramObj->mail->bcc        = explode(",",$this->bcc);
         $paramObj->mail->subject    = $subject;
 //        echo "<pre>";print_r($paramObj->mail);
         $paramObj->placeholders = new \stdClass();
         foreach($placeHoldersKeyValuePair as $key => $value){
             $paramObj->placeholders->$key = $value;
        	}
-//	$paramObj->config = new \stdClass();
-//	$paramObj->config->isZip = '';
-        //$paramObj->placeholders = json_encode($placeHoldersKeyValuePair,JSON_FORCE_OBJECT);
 
 
-    // Prepare the POST data
+
+        // Prepare the POST data
         $postData = json_encode($paramObj);
-	echo $postData;
-	echo "<br>";
-	log_message('info', 'In EmailService@sendMailOverApi | the api url is ' . $target_url);
-	log_message('info', 'In EmailService@sendMailOverApi | the json payload is ' . $postData);
+	    echo $postData;
+	    echo "<br>";
+	    log_message('info', 'In EmailService@sendMailOverApi | the api url is ' . $target_url);
+	    log_message('info', 'In EmailService@sendMailOverApi | the json payload is ' . $postData);
 	
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL,$target_url);
         curl_setopt($ch, CURLOPT_POST,1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true );
+	    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+	    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true );
         $result=curl_exec ($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close ($ch);
-	log_message('INFO', 'In EmailService@sendMailOverApi | The httpcode is - ' . print_r($httpcode, true));
+	    log_message('INFO', 'In EmailService@sendMailOverApi | The httpcode is - ' . print_r($httpcode, true));
         if($httpcode === 200){
 		log_message('INFO', 'In EmailService@sendMailOverApi | Mail sent successfully with message - '.print_r($result, true));
         	return true;
-	}else{
-		log_message('ERROR', 'In EmailService@sendMailOverApi | Mail not sent . The http code is : '. $httpcode .' The reason is - ' . print_r($result, true));			
-		return false;
-	}
+	    }else{
+		    log_message('ERROR', 'In EmailService@sendMailOverApi | Mail not sent . The http code is : '. $httpcode .' The reason is - ' . print_r($result, true));			
+		    return false;
+	    }
 
      }
 }
