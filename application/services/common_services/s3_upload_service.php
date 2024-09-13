@@ -33,7 +33,7 @@ class S3UploadService
         log_message('INFO', 'In S3UploadService@uploadFile | File upload status is - ' . print_r($status,true));
         return $status;
     }
-    public function uploadFileOverApi($filePath , $fileName = '')
+    public function uploadFileOverApi($filePath , $fileName = '' , $isPublic = TRUE)
     {
         log_message('INFO', 'In S3UploadService@uploadFileOverApi | Entering function with arguments - '.print_r(func_get_args(),true));
         $mimeType = $this->getMimeTypeOfFile($filePath);
@@ -50,7 +50,7 @@ class S3UploadService
             'destinationFileName' => $fileName,
             'bucketName' => $this->BucketName,
             'destinationFolderName' => $this->s3folderPath,
-            'isPublic' => true,
+            'isPublic' => $isPublic,
             'sourceFilePath' => new \CurlFile($filePath, $mimeType, $fileName)
         ];
         $ch = curl_init();
@@ -67,10 +67,10 @@ class S3UploadService
         curl_close ($ch);
 	    log_message('INFO', 'In S3UploadService@uploadFileOverApi | The httpcode is - ' . print_r($httpcode, true));
         if($httpcode === 200){
-		log_message('INFO', 'In S3UploadService@uploadFileOverApi | Mail sent successfully with message - '.print_r($result, true));
+		log_message('INFO', 'In S3UploadService@uploadFileOverApi | file uploaded successfully to s3 with value - '.print_r($result, true));
         	return ['status'=> true , 's3Url' => $result];
 	    }else{
-		    log_message('ERROR', 'In S3UploadService@uploadFileOverApi | Mail not sent . The http code is : '. $httpcode .' The reason is - ' . print_r($result, true));			
+		    log_message('ERROR', 'In S3UploadService@uploadFileOverApi | file could not be uploaded to s3: '. $httpcode .' The reason is - ' . print_r($result, true));			
 		    return ['status'=> false , 's3Url' => ''];
 	    }
     }
@@ -117,10 +117,10 @@ class S3UploadService
         curl_close ($ch);
 	    log_message('INFO', 'In S3UploadService@deleteFileOverApi | The httpcode is - ' . print_r($httpcode, true));
         if($httpcode === 200){
-		    log_message('INFO', 'In S3UploadService@deleteFileOverApi | Mail sent successfully with message - '.print_r($result, true));
+		    log_message('INFO', 'In S3UploadService@deleteFileOverApi | s3 file deleted successfully with value - '.print_r($result, true));
         	return true;
 	    }else{
-		    log_message('ERROR', 'In S3UploadService@deleteFileOverApi | Mail not sent . The http code is : '. $httpcode .' The reason is - ' . print_r($result, true));			
+		    log_message('ERROR', 'In S3UploadService@deleteFileOverApi | could not deleted s3 file . The http code is : '. $httpcode .' The reason is - ' . print_r($result, true));			
 		    return false;
 	    }
     }
