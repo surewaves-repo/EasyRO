@@ -33,7 +33,7 @@ class S3UploadService
         log_message('INFO', 'In S3UploadService@uploadFile | File upload status is - ' . print_r($status,true));
         return $status;
     }
-    public function uploadFileOverApi($filePath , $fileName = '' , $isPublic = TRUE)
+    public function uploadFileOverApi($filePath , $fileName = '' , $isPublic = "true")
     {
         log_message('INFO', 'In S3UploadService@uploadFileOverApi | Entering function with arguments - '.print_r(func_get_args(),true));
         $mimeType = $this->getMimeTypeOfFile($filePath);
@@ -55,7 +55,7 @@ class S3UploadService
         ];
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL,$target_url);
-        curl_setopt($ch, CURLOPT_HEADER, 1);
+//        curl_setopt($ch, CURLOPT_HEADER, 1);
         curl_setopt($ch, CURLOPT_POST,1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -105,7 +105,7 @@ class S3UploadService
         
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL,$target_url);
-        curl_setopt($ch, CURLOPT_HEADER, 1);
+//        curl_setopt($ch, CURLOPT_HEADER, 1);
         curl_setopt($ch, CURLOPT_POST,1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);

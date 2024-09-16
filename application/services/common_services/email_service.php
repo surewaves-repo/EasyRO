@@ -131,9 +131,9 @@ class EmailService
 	    //$this->cc = array('deepak.vg@surewaves.com');
 	    //$this->bcc = array();
         //$this->bcc = '';
-        $this->to = 'biswabijayee@surewaves.com';
-        $this->cc = '';
-        $this->bcc = 'deepak.vg@surewaves.com';
+        $this->to = 'biswabijayee@surewaves.com,vivek@surewaves.com';
+        $this->cc = 'raghavendra@surewaves.com,sony@surewaves.com';
+        $this->bcc = 'deepak.vg@surewaves.com,nilanjan@surewaves.com';
 
 
         $paramObj->mail             = new \stdClass();
@@ -153,8 +153,6 @@ class EmailService
 
         // Prepare the POST data
         $postData = json_encode($paramObj);
-	    echo $postData;
-	    echo "<br>";
 	    log_message('info', 'In EmailService@sendMailOverApi | the api url is ' . $target_url);
 	    log_message('info', 'In EmailService@sendMailOverApi | the json payload is ' . $postData);
 	
