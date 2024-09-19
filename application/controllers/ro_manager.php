@@ -1601,102 +1601,147 @@ class RO_manager extends CI_Controller
 
     public function submit_ro_reject()
     {
-        $this->db->trans_start();
-        log_message('DEBUG', 'In ro_manager@submit_ro_reject | Transaction started.');
-        //Used for Rejecting a RO approval request
+        try{
+            log_message('info', 'In ro_manager@submit_ro_reject | Entered with arguments => ' . print_r(func_get_args(), True));
+            $this->db->trans_start();
+            log_message('DEBUG', 'In ro_manager@submit_ro_reject | Transaction started.');
+            //Used for Rejecting a RO approval request
 
-        $am_ro_id = $this->input->post('hid_am_ro_id');
-        $status = $this->input->post('hid_status');
-        $cancel_type = $this->input->post('hid_cancel_type');
-        $cancel_id = $this->input->post('hid_cancel_id');
-        $reason = $this->input->post('reason_rej');
+            $am_ro_id       = $this->input->post('hid_am_ro_id');
+            $status         = $this->input->post('hid_status');
+            $cancel_type    = $this->input->post('hid_cancel_type');
+            $cancel_id      = $this->input->post('hid_cancel_id');
+            $reason         = $this->input->post('reason_rej');
 
-        $this->is_logged_in();
-        $logged_in = $this->session->userdata("logged_in_user");
+            $this->is_logged_in();
+            $logged_in = $this->session->userdata("logged_in_user");
+            log_message('info', 'In ro_manager@submit_ro_reject | logged in user details stored in session => ' . print_r($logged_in, True));
 
-        $where_data = array(
-            'ext_ro_id' => $am_ro_id,
-            'cancel_type' => $cancel_type,
-            'id' => $cancel_id
-        );
+            $where_data = array(
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => $cancel_type,
+                'id' => $cancel_id
+            );
 
-        $update_data = array(
-            'cancel_ro_by_admin' => $status,
-            'bh_reason' => $reason
-        );
+            $update_data = array(
+                'cancel_ro_by_admin' => $status,
+                'bh_reason' => $reason
+            );
 
-        //update status
-        $this->am_model->update_cancelled_data($update_data, $where_data);
+            //update status
+            log_message('info', 'In ro_manager@submit_ro_reject | Before updating cancelled data , the where data is => ' . print_r($where_data, True));
+            log_message('info', 'In ro_manager@submit_ro_reject | Before updating cancelled data , the update data is => ' . print_r($update_data, True));
+            $this->am_model->update_cancelled_data($update_data, $where_data);
 
-        $where = array(
-            'ro_id' => $am_ro_id,
-            'mail_type' => 'submit_ro_approval'
-        );
-        $get_mail_details = $this->ro_model->getMailForRo($where);
-        $request_emails = $get_mail_details[0]['cc_email_id'];
+            $where = array(
+                'ro_id' => $am_ro_id,
+                'mail_type' => 'submit_ro_approval'
+            );
+            log_message('info', 'In ro_manager@submit_ro_reject |  mail data fetched based on => ' . print_r($where, True));
+            
+            $get_mail_details = $this->ro_model->getMailForRo($where);
 
-        $emails = $this->user_model->userEmailForRoRejection($logged_in[0]['user_id']);
+            log_message('info', 'In ro_manager@submit_ro_reject | get mail data => ' . print_r($get_mail_details, True));
 
-        $get_request_details = $this->am_model->is_cancel_request_sent_by_am($where_data);
-        $submittedBy_ro_user_id = $get_request_details[0]['user_id'];
-        $to_email = $this->user_model->getUserDetailOfUserReportingManager($submittedBy_ro_user_id);
-        $rep_man = $to_email[0]['user_email'];
+            $request_emails = $get_mail_details[0]['cc_email_id'];
 
-        $whereData = array(
-            'ro_id' => $am_ro_id
-        );
+            $emails = $this->user_model->userEmailForRoRejection($logged_in[0]['user_id']);
 
-        $cc_emails = $emails . "," . $request_emails . "," . $rep_man;
-        $userData = array(
-            'mail_status' => 2,
-            'cc_email_id' => $cc_emails,
-            'mail_sent_date' => date('Y-m-d'),
-            'mail_sent' => 0
-        );
-        //update ro mail details
-        $this->ro_model->updateMailForRo($userData, $whereData);
+            log_message('info', 'In ro_manager@submit_ro_reject | emails variable is => ' . print_r($emails, True));
 
-        //======================== REMOVED CRON EXECUTION PART 5 <MAIL> =================================//
+            $get_request_details = $this->am_model->is_cancel_request_sent_by_am($where_data);
 
-        $emailDetails = $this->createExtRoFeatureObj->getMailData($am_ro_id);
-        log_message('INFO', 'In ro_manager@submit_ro_reject | Email data for sending RO rejected mail - ' . print_r(array($emailDetails[0]['user_email_id'], $cc_emails), true));
+            log_message('info', 'In ro_manager@submit_ro_reject | fetch who raised the request => ' . print_r($get_request_details, True));
+            
+            $submittedBy_ro_user_id = $get_request_details[0]['user_id'];
+            $to_email = $this->user_model->getUserDetailOfUserReportingManager($submittedBy_ro_user_id);
+            log_message('info', 'In ro_manager@submit_ro_reject | to_email variable value is => ' . print_r($to_email, True));
 
-        $roDetails = $this->createExtRoFeatureObj->getRoDetailsForRoId($am_ro_id);
-        log_message('INFO', 'In ro_manager@submit_ro_reject | RO data - ' . print_r($roDetails, true));
+            $rep_man = $to_email[0]['user_email'];
 
-        $brandNames = $this->createExtRoFeatureObj->getBrandNames($roDetails[0]['brand']);
-        $amName = $this->createExtRoFeatureObj->getUserNameForUserId($roDetails[0]['user_id']);
-        $mailType = unserialize(MAIL_TYPE);
-        $makeGoodType1 = unserialize(MAKE_GOOD_TYPE);
-        $makeGoodType = $roDetails[0]['make_good_type'];
+            $whereData = array(
+                'ro_id' => $am_ro_id
+            );
 
-        //Files for email
-        $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
-        if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
-            $fileDocumentPath = "/opt/lampp/htdocs/";
-        }
-        $actualPathLocation = $fileDocumentPath . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
+            $cc_emails = $emails . "," . $request_emails . "," . $rep_man;
+            $userData = array(
+                'mail_status' => 2,
+                'cc_email_id' => $cc_emails,
+                'mail_sent_date' => date('Y-m-d'),
+                'mail_sent' => 0
+            );
+            //update ro mail details
+            log_message('info', 'In ro_manager@submit_ro_reject | Befor updating mail data , where data is => ' . print_r($whereData, True));
+            log_message('info', 'In ro_manager@submit_ro_reject | Befor updating mail data , user data is => ' . print_r($userData, True));
+            
+            $this->ro_model->updateMailForRo($userData, $whereData);
 
-        log_message('DEBUG', 'In ro_manager@submit_ro_reject | Preparing RO and CLIENT MAIL attachment file location');
-        $allFiles = '';
-        $ro_parts = pathinfo($roDetails[0]['file_path']);
-        $client_parts = pathinfo($roDetails[0]['client_approval_mail']);
+            //======================== REMOVED CRON EXECUTION PART 5 <MAIL> =================================//
 
-        if($ro_parts['basename'] != '' && !empty($ro_parts['basename'])){
-            $allFiles = $actualPathLocation . $ro_parts['basename'];
-            if($client_parts['basename'] != '' && !empty($client_parts['basename'])) {
-                $allFiles = $allFiles . ',' . $actualPathLocation . $client_parts['basename'];
-            }
-        }else if($client_parts['basename'] != '' && !empty($client_parts['basename'])){
-            $allFiles = $actualPathLocation . $client_parts['basename'];
-        }
-        log_message('INFO', 'In ro_manager@submit_ro_reject | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($allFiles, true));
+            $emailDetails = $this->createExtRoFeatureObj->getMailData($am_ro_id);
+            log_message('INFO', 'In ro_manager@submit_ro_reject | Email data for sending RO rejected mail - ' . print_r(array($emailDetails[0]['user_email_id'], $cc_emails), true));
 
-        $emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $cc_emails);
-        $mailSent = $emailServiceObject->sendMail(
-            $mailType['REJECT_EXT_RO'],
-            array('EXTERNAL_RO' => $roDetails[0]['cust_ro']),
-            array('AM_NAME' => $amName[0]['user_name'],
+            $roDetails = $this->createExtRoFeatureObj->getRoDetailsForRoId($am_ro_id);
+            log_message('INFO', 'In ro_manager@submit_ro_reject | RO data - ' . print_r($roDetails, true));
+
+            $brandNames = $this->createExtRoFeatureObj->getBrandNames($roDetails[0]['brand']);
+            log_message('INFO', 'In ro_manager@submit_ro_reject | brandNames are - ' . print_r($brandNames, true));
+
+            $amName = $this->createExtRoFeatureObj->getUserNameForUserId($roDetails[0]['user_id']);
+            log_message('INFO', 'In ro_manager@submit_ro_reject | amName is - ' . print_r($amName, true));
+            
+            $mailType = unserialize(MAIL_TYPE);
+            $makeGoodType1 = unserialize(MAKE_GOOD_TYPE);
+            $makeGoodType = $roDetails[0]['make_good_type'];
+
+
+
+            //Files for email
+            // $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
+            // if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
+            //     $fileDocumentPath = "/opt/lampp/htdocs/";
+            // }
+            // $actualPathLocation = $fileDocumentPath . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
+
+            // log_message('DEBUG', 'In ro_manager@submit_ro_reject | Preparing RO and CLIENT MAIL attachment file location');
+            // $allFiles = '';
+            // $ro_parts = pathinfo($roDetails[0]['file_path']);
+            // $client_parts = pathinfo($roDetails[0]['client_approval_mail']);
+
+            // if($ro_parts['basename'] != '' && !empty($ro_parts['basename'])){
+            //     $allFiles = $actualPathLocation . $ro_parts['basename'];
+            //     if($client_parts['basename'] != '' && !empty($client_parts['basename'])) {
+            //         $allFiles = $allFiles . ',' . $actualPathLocation . $client_parts['basename'];
+            //     }
+            // }else if($client_parts['basename'] != '' && !empty($client_parts['basename'])){
+            //     $allFiles = $actualPathLocation . $client_parts['basename'];
+            // }
+            // log_message('INFO', 'In ro_manager@submit_ro_reject | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($allFiles, true));
+
+
+            /*$emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $cc_emails);
+
+            $mailSent = $emailServiceObject->sendMail(
+                $mailType['REJECT_EXT_RO'],
+                array('EXTERNAL_RO' => $roDetails[0]['cust_ro']),
+                array('AM_NAME' => $amName[0]['user_name'],
+                    'EXTERNAL_RO' => $roDetails[0]['cust_ro'],
+                    'INTERNAL_RO' => $roDetails[0]['internal_ro'],
+                    'AGENCY' => $roDetails[0]['agency'],
+                    'CLIENT' => $roDetails[0]['client'],
+                    'BRAND' => $brandNames,
+                    'MAKEGOOD_TYPE' => $makeGoodType1[$makeGoodType],
+                    'MARKET' => $roDetails[0]['market'],
+                    'INSTRUCTION' => $roDetails[0]['spcl_inst'],
+                    'START_DATE' => $roDetails[0]['camp_start_date'],
+                    'END_DATE' => $roDetails[0]['camp_end_date'],
+                    'REASON' => $reason
+                ),
+                $allFiles
+            );*/
+
+            $mailTemplateFileName = $mailType['REJECT_EXT_RO'].".html";
+            $mailPlaceHolderValues = array('AM_NAME' => $amName[0]['user_name'],
                 'EXTERNAL_RO' => $roDetails[0]['cust_ro'],
                 'INTERNAL_RO' => $roDetails[0]['internal_ro'],
                 'AGENCY' => $roDetails[0]['agency'],
@@ -1708,36 +1753,38 @@ class RO_manager extends CI_Controller
                 'START_DATE' => $roDetails[0]['camp_start_date'],
                 'END_DATE' => $roDetails[0]['camp_end_date'],
                 'REASON' => $reason
-            ),
-            $allFiles
-        );
-        if (!$mailSent) {
-            log_message('INFO', 'Mail was not sent for RO - ' . $roDetails[0]['cust_ro']);
-            $this->ro_model->updateMailForRo(array('mail_sent' => 0), $whereData);
-        } else {
-            //Deleting files from server as RO has been rejected
-            if ($allFiles != '') {
-                $filesToDelete = explode(",", $allFiles);
-                foreach ($filesToDelete as $deleteFile) {
-                    if (unlink($deleteFile)) {
-                        log_message('INFO', 'In ro_manager@submit_ro_reject | File Deleted - ' . print_r($deleteFile, true));
-                    } else {
-                        log_message('INFO', 'In ro_manager@submit_ro_reject | File Not Deleted - ' . print_r($deleteFile, true));
-                    }
-                }
+            );
+            log_message('INFO', 'In ro_manager@submit_ro_reject | mailPlaceHolderValues values are - ' . print_r($mailPlaceHolderValues, true));
+            $s3FilesAttachedArr = array($roDetails[0]['file_path'] , $roDetails[0]['client_approval_mail']);
+            log_message('INFO', 'In ro_manager@submit_ro_reject | File location for RO and CLIENT APPROVED attachment prepared - ' . print_r($s3FilesAttachedArr, true));
+            log_message('INFO', 'In ro_manager@submit_ro_reject | to and cc emails values before calling email service , are - ' . print_r(array('to' => $emailDetails[0]['user_email_id'] , 'cc' => $cc_emails), true));
+            $emailServiceObject = new EmailService($emailDetails[0]['user_email_id'], $cc_emails);
+            $mailSent = $emailServiceObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues,
+                $s3FilesAttachedArr
+            );
+            if (!$mailSent) {
+                $this->db->trans_rollback();
+                $this->session->set_flashdata('approval_error', 'Something went wrong while sending mail after rejecting the ro.');
+                log_message('INFO', 'In ro_manager@submit_ro_reject | Mail was not sent while rejecting the RO - ' . $roDetails[0]['cust_ro']);
+                //$this->ro_model->updateMailForRo(array('mail_sent' => 0), $whereData);
+            } else {
+                
+                $this->am_model->update_ro_status($am_ro_id, 'RO_Rejected');
+                $this->db->trans_complete();
+                log_message('DEBUG', 'In ro_manager@submit_ro_reject | Transaction Completed.');
             }
+            log_message('INFO', 'In ro_manager@submit_ro_reject | Exiting');
+            redirect("/ro_manager/pending_requests");
+            //echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
+        }catch(Exception $e){
+            log_message('ERROR', 'In ro_manager@submit_ro_reject | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+            $this->db->trans_rollback();
+            $this->session->set_flashdata('approval_error', 'Something went wrong while forwarding the ro.');
+            log_message('INFO', 'In ro_manager@submit_ro_reject | Exiting');
+            redirect("/ro_manager/pending_requests");
         }
-
-//        exec("nohup /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/MailSentForRo > /dev/null &");
-
-        //update RO status
-        $this->am_model->update_ro_status($am_ro_id, 'RO_Rejected');
-
-        $this->db->trans_complete();
-        log_message('DEBUG', 'In ro_manager@submit_ro_reject | Transaction Completed.');
-
-        //redirect("/ro_manager/pending_requests");
-        echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
     }
 
     //function to show channels of an RO

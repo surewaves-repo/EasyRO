@@ -426,7 +426,14 @@ class CreateExtRoService
         $filePath = $_SERVER['DOCUMENT_ROOT'] . "/surewaves_easy_ro/" . 'easy_ro_temp_pdf/' . $fileName;
         //$status = $this->s3Obj->uploadFile($filePath, $fileName);
         $retArr = $this->s3Obj->uploadFileOverApi($filePath, $fileName);
-       
+        // delete the local file . It doesnt matter if it has uploaded to s3 successfully or not.
+      
+        if (unlink($filePath)) {
+            log_message('INFO', 'In CreateExtRoService@uploadOntoS3 | Locale File deleted successfully');
+        } else {
+            log_message('INFO', 'In CreateExtRoService@uploadOntoS3 | failed to delete Locale File');
+        }
+        
         if ($retArr['status'] == True) {
             log_message('INFO', 'In CreateExtRoService@uploadOntoS3 | File Uploaded successfully');
             //return $this->s3Obj->generateURL($fileName);
