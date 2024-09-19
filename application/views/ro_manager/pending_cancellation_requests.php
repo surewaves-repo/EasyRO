@@ -128,12 +128,12 @@
 
         <div class="block">
         <?php if(isset($approval_error) && $approval_error != null) { ?>
-                <div style="align-items: center;width: 100%;overflow-wrap: break-word;text-align: center;">
+                <div style="align-items: center;width: 100%;overflow-wrap: break-word;text-align: center; color:red;">
                     <?php  echo $approval_error; ?>
                 </div>
         <?php } elseif(isset($validation_errors) && $validation_errors != null) { ?>
             
-                <div style="align-items: center;width: 100%;overflow-wrap: break-word;text-align: center;">
+                <div style="align-items: center;width: 100%;overflow-wrap: break-word;text-align: center; color:red;">
                     <?php  echo $validation_errors; ?>
                 </div>
          <?php } ?>
