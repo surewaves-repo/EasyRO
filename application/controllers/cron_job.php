@@ -2894,7 +2894,7 @@ class Cron_job extends CI_Controller
     {
         //echo $parameters1."<br>".$parameters2.$parameters3;
         echo "<pre>";
-        print_r($args);
+        //print_r($args);
         //$this->channel_aggregate_model->call_channelwiseAggregate();
     }
 
@@ -2907,308 +2907,340 @@ class Cron_job extends CI_Controller
     {
         log_message('info', 'In cron_job@MailSentForRo | Entered with arguments => ' . print_r(func_get_args(), True));
 
-        if (isset($mail_type_val) && !empty($mail_type_val)) {
+        if(isset($mail_type_val) && !empty($mail_type_val)) {
             $mailData = $this->ro_model->getMailForRo(array('mail_sent' => 0, 'mail_type' => $mail_type_val));
-        } else {
+        }else {
             $mailData = $this->ro_model->getMailForRo(array('mail_sent' => 0));
         }
+        log_message('info', 'In cron_job@MailSentForRo | mailData are  => ' . print_r($mailData, True));
 
         foreach ($mailData as $val) {
             $this->ro_model->updateMailForRo(array('id' => $val['id']), array('mail_sent' => 2));
             $mail_type = $val['mail_type'];
             //$mailTemplate = $this->getMailTemplateId($mail_type);
 
-            if ($mail_type == 'submit_ro_approval') {
-                //Mail for FCT RO
+//             if ($mail_type == 'submit_ro_approval') {
+//                 //Mail for FCT RO
 
-                $roDetail = $this->am_model->ro_detail_for_ro_id($val['ro_id']);
+//                 $roDetail = $this->am_model->ro_detail_for_ro_id($val['ro_id']);
 
 
-//                This flow is changed. now ro files are uploaded as a single file in s3 and file location is saved in ro_am_external_ro <file_path> table
-//                instead of ro_am_external_ro_files <file_location> table
+// //                This flow is changed. now ro files are uploaded as a single file in s3 and file location is saved in ro_am_external_ro <file_path> table
+// //                instead of ro_am_external_ro_files <file_location> table
 
-//                $roFiles = $this->am_model->getFilesForAmRo(array('ro_id' => $val['ro_id']));
-                $allfiles = "";
+// //                $roFiles = $this->am_model->getFilesForAmRo(array('ro_id' => $val['ro_id']));
+//                 $allfiles = "";
 
-                $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
-                if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
-                    $fileDocumentPath = "/opt/lampp/htdocs/";
-                }
-                $actual_path_location = $fileDocumentPath . "surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
+//                 $fileDocumentPath = $_SERVER['DOCUMENT_ROOT'];
+//                 if (!isset($fileDocumentPath) || empty($fileDocumentPath)) {
+//                     $fileDocumentPath = "/opt/lampp/htdocs/";
+//                 }
+//                 $actual_path_location = $fileDocumentPath . "surewaves_easy_ro/" . 'easy_ro_temp_pdf/';
 
-                foreach ($roDetail as $file) {
-//                    $path_parts = pathinfo($file['file_location']); //file location is available in ro_am_external_ro <file_path>
-                    $path_parts = pathinfo($file['file_path']);
-                    if (empty($allfiles) || !isset($allfiles)) {
-                        $allfiles = $actual_path_location . "" . $path_parts['basename'];
-                    } else {
-                        $allfiles = $allfiles . "," . $actual_path_location . "" . $path_parts['basename'];
+//                 foreach ($roDetail as $file) {
+// //                    $path_parts = pathinfo($file['file_location']); //file location is available in ro_am_external_ro <file_path>
+//                     $path_parts = pathinfo($file['file_path']);
+//                     if (empty($allfiles) || !isset($allfiles)) {
+//                         $allfiles = $actual_path_location . "" . $path_parts['basename'];
+//                     } else {
+//                         $allfiles = $allfiles . "," . $actual_path_location . "" . $path_parts['basename'];
+//                     }
+//                 }
+//                 $client_approval_mail_attachment = pathinfo($roDetail[0]['client_approval_mail']);
+//                 $allfiles = $allfiles . "," . $actual_path_location . "" . $client_approval_mail_attachment['basename'];
+
+//                 $submittedUserDetail = $this->user_model->getUserDetailValues($roDetail[0]['user_id']);
+//                 $brand_name = $this->am_model->get_brand_names($roDetail[0]['brand']);
+//                 $where_data = array(
+//                     'ext_ro_id' => $val['ro_id'],
+//                     'cancel_type' => 'submit_ro_approval',
+//                     'cancel_ro_by_admin' => 2
+//                 );
+//                 $get_request_details = $this->am_model->is_cancel_request_sent_by_am($where_data);
+//                 $reason = $get_request_details[0]['bh_reason'];
+//                 $make_good_type = '';
+//                 if ($roDetail[0]['make_good_type'] == 0) {
+//                     $make_good_type = 'Auto Make Good';
+//                 } else if ($roDetail[0]['make_good_type'] == 1) {
+//                     $make_good_type = 'Client approved make good';
+//                 } else {
+//                     $make_good_type = 'No Make Good';
+//                 }
+
+//                 switch ($val['mail_status']) {
+
+//                     //When the RO is submitted
+//                     case 0:
+//                         mail_send_v1($val['user_email_id'],
+//                             'create_ext_ro',
+//                             array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
+//                             array(
+//                                 'AM_NAME' => $submittedUserDetail[0]['user_name'],
+//                                 'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
+//                                 'INTERNAL_RO' => $roDetail[0]['internal_ro'],
+//                                 'AGENCY' => $roDetail[0]['agency'],
+//                                 'CLIENT' => $roDetail[0]['client'],
+//                                 'BRAND' => $brand_name,
+//                                 'MAKEGOOD_TYPE' => $make_good_type,
+//                                 'MARKET' => $roDetail[0]['market'],
+//                                 'INSTRUCTION' => $roDetail[0]['spcl_inst'],
+//                                 'START_DATE' => $roDetail[0]['camp_start_date'],
+//                                 'END_DATE' => $roDetail[0]['camp_end_date']
+//                             ),
+//                             $allfiles,
+//                             $val['cc_email_id'],
+//                             '',
+//                             ''
+//                         );
+//                         $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+//                         break;
+//                     //When RO is approved & Ready for Scheduling
+//                     case 1:
+//                         mail_send_v1($val['user_email_id'],
+//                             'approve_ext_ro',
+//                             array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
+//                             array(
+//                                 'AM_NAME' => $submittedUserDetail[0]['user_name'],
+//                                 'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
+//                                 'INTERNAL_RO' => $roDetail[0]['internal_ro'],
+//                                 'AGENCY' => $roDetail[0]['agency'],
+//                                 'CLIENT' => $roDetail[0]['client'],
+//                                 'BRAND' => $brand_name,
+//                                 'MAKEGOOD_TYPE' => $make_good_type,
+//                                 'MARKET' => $roDetail[0]['market'],
+//                                 'INSTRUCTION' => $roDetail[0]['spcl_inst'],
+//                                 'START_DATE' => $roDetail[0]['camp_start_date'],
+//                                 'END_DATE' => $roDetail[0]['camp_end_date']
+//                             ),
+//                             $allfiles,
+//                             $val['cc_email_id'],
+//                             '',
+//                             ''
+//                         );
+//                         $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+//                         break;
+//                     //When RO is Rejected
+//                     case 2:
+//                         mail_send_v1($val['user_email_id'],
+//                             'reject_ext_ro',
+//                             array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
+//                             array(
+//                                 'AM_NAME' => $submittedUserDetail[0]['user_name'],
+//                                 'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
+//                                 'INTERNAL_RO' => $roDetail[0]['internal_ro'],
+//                                 'AGENCY' => $roDetail[0]['agency'],
+//                                 'CLIENT' => $roDetail[0]['client'],
+//                                 'BRAND' => $brand_name,
+//                                 'MAKEGOOD_TYPE' => $make_good_type,
+//                                 'MARKET' => $roDetail[0]['market'],
+//                                 'INSTRUCTION' => $roDetail[0]['spcl_inst'],
+//                                 'START_DATE' => $roDetail[0]['camp_start_date'],
+//                                 'END_DATE' => $roDetail[0]['camp_end_date'],
+//                                 'REASON' => $reason
+//                             ),
+//                             $allfiles,
+//                             $val['cc_email_id'],
+//                             '',
+//                             ''
+//                         );
+//                         $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+//                         break;
+//                     //When RO is forwarded to upper level
+//                     case 3:
+//                         if ($val['approval_level'] == 2) {
+//                             $forwarded_to = "National Head";
+//                         } else if ($val['approval_level'] == 3) {
+//                             $forwarded_to = "Business Head";
+//                         }
+//                         mail_send_v1($val['user_email_id'],
+//                             'forward_ext_ro',
+//                             array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
+//                             array(
+//                                 'AM_NAME' => $submittedUserDetail[0]['user_name'],
+//                                 'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
+//                                 'INTERNAL_RO' => $roDetail[0]['internal_ro'],
+//                                 'AGENCY' => $roDetail[0]['agency'],
+//                                 'CLIENT' => $roDetail[0]['client'],
+//                                 'BRAND' => $brand_name,
+//                                 'MAKEGOOD_TYPE' => $make_good_type,
+//                                 'MARKET' => $roDetail[0]['market'],
+//                                 'INSTRUCTION' => $roDetail[0]['spcl_inst'],
+//                                 'START_DATE' => $roDetail[0]['camp_start_date'],
+//                                 'END_DATE' => $roDetail[0]['camp_end_date'],
+//                                 'FORWARDED_TO' => $forwarded_to
+//                             ),
+//                             $allfiles,
+//                             $val['cc_email_id'],
+//                             '',
+//                             ''
+//                         );
+//                         $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+//                         break;
+
+//                 }
+//             } else 
+
+                if($mail_type == 'non_fct_ro_approval') {
+                    try{
+                            log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval | printing the mail type ' . print_r($mail_type, True));
+                        //Mail for Non FCT RO
+                            log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval | updating the values ' . print_r(['where'=>['id' => $val['id']],'data'=>['mail_sent' => 2]], True));
+                            $this->ro_model->updateMailForRo(array('id' => $val['id']), array('mail_sent' => 2));
+                            
+                            $roDetail = $this->am_model->get_non_fct_ro_details($val['ro_id']);
+                            log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval | roDetail is ' . print_r($roDetail, True));
+                            
+                            $submittedUserDetail = $this->user_model->getUserDetailValues($roDetail[0]['user_id']);
+                            log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval | submittedUserDetail is ' . print_r($submittedUserDetail, True));
+                            
+                            switch ($val['mail_status']) {
+                            //When the RO is submitted
+                                case 0:
+                            /*  mail_send_v1($val['user_email_id'],
+                                    'create_non_fct_ro',
+                                    array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
+                                    array(
+                                        'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                                        'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                                        'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                                        'AGENCY' => $roDetail[0]['agency'],
+                                        'CLIENT' => $roDetail[0]['client'],
+                                        'INSTRUCTION' => $roDetail[0]['description']
+                                    ),
+                                    '',
+                                    $val['cc_email_id'],
+                                    '',
+                                    ''
+                                );*/
+                                    log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_submit | when mail_status=0 i.e ro is submitted. ');
+
+                                    $mailPlaceHolderValues =  array( 'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                                        'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                                        'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                                        'AGENCY' => $roDetail[0]['agency'],
+                                        'CLIENT' => $roDetail[0]['client'],
+                                        'INSTRUCTION' => $roDetail[0]['description']
+                                    );
+                                    log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_submit | mailPlaceHolderValues are.'.print_r($mailPlaceHolderValues,true));
+                                    $mailTemplateFileName   = "create_non_fct_ro.html";
+                                    log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_submit |  to and cc emails are ,  '.print_r(array('to'=>$val['user_email_id'],'cc'=>$val['cc_email_id']),True));
+                                    $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
+                                    
+                                    log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_submit | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
+                                    $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+                                    if($status){
+                                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                        log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_submit | non fct RO is submitted and exiting  MailSentForRo function');
+                                    }else{
+                                        $this->ro_model->updateMailForRo(array('mail_sent' => 0, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                        log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_submit | non fct RO is submitted but mail got failed and exiting  MailSentForRo function');
+                                    }
+                                
+                                break;
+
+                            //When RO is approved
+                            case 1:
+                            /* mail_send_v1($val['user_email_id'],
+                                    'approve_non_fct_ro',
+                                    array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
+                                    array(
+                                        'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                                        'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                                        'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                                        'AGENCY' => $roDetail[0]['agency'],
+                                        'CLIENT' => $roDetail[0]['client'],
+                                        'INSTRUCTION' => $roDetail[0]['description']
+                                    ),
+                                    '',
+                                    $val['cc_email_id'],
+                                    '',
+                                    ''
+                                );
+                                $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                break;*/
+                                log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_approved | when mail_status=1 i.e ro is approved. ');
+                                $mailPlaceHolderValues =    array(
+                                    'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                                    'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                                    'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                                    'AGENCY' => $roDetail[0]['agency'],
+                                    'CLIENT' => $roDetail[0]['client'],
+                                    'INSTRUCTION' => $roDetail[0]['description']
+                                );
+                                log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_approved | mailPlaceHolderValues are.'.print_r($mailPlaceHolderValues,true));
+                                $mailTemplateFileName   = "approve_non_fct_ro.html";
+                                log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_approved | to and cc emails are - '.print_r(array('to'=>$val['user_email_id'],'cc'=>$val['cc_email_id']),True));
+                                $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
+                                log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_approved | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
+                                $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+                                if($status){
+                                    $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                    log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_approved | non fct RO is approved and exiting  MailSentForRo function');
+                                }else{
+                                    $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                    log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_approved | non fct RO is approved but mail got failed and exiting  MailSentForRo function');
+                                }
+                                break;
+
+
+                            //When RO is Rejected
+                            case 2:
+                                /*mail_send_v1($val['user_email_id'],
+                                    'reject_non_fct_ro',
+                                    array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
+                                    array(
+                                        'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                                        'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                                        'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                                        'AGENCY' => $roDetail[0]['agency'],
+                                        'CLIENT' => $roDetail[0]['client'],
+                                        'INSTRUCTION' => $roDetail[0]['description']
+                                    ),
+                                    '',
+                                    $val['cc_email_id'],
+                                    '',
+                                    ''
+                                );
+                                $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                break;*/
+                                log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_reject | when mail_status=1 i.e ro is rejected. ');
+                                $mailPlaceHolderValues =    array(
+                                    'AM_NAME' => $submittedUserDetail[0]['user_name'],
+                                    'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
+                                    'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
+                                    'AGENCY' => $roDetail[0]['agency'],
+                                    'CLIENT' => $roDetail[0]['client'],
+                                    'INSTRUCTION' => $roDetail[0]['description']
+                                );
+                                log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_reject | mailPlaceHolderValues are.'.print_r($mailPlaceHolderValues,true));
+                                $mailTemplateFileName   = "reject_non_fct_ro.html";
+
+                                log_message('info','In cron_job@MailSentForRo#non_fct_ro_approval#ro_reject | to and cc emails are - '.print_r(array('to'=>$val['user_email_id'],'cc'=>$val['cc_email_id']),True));
+                                $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
+                                log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_reject | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
+                                
+                                $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
+                                if($status){
+                                    $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                    log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_reject | non fct RO is rejected and exiting  MailSentForRo function');
+                                }else{
+                                    $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
+                                    log_message('info', 'In cron_job@MailSentForRo#non_fct_ro_approval#ro_reject | non fct RO is rejected but mail got failed and exiting  MailSentForRo function');
+                                }
+                                break;
+
+                        }
+                    }catch(Exception $e){
+                        log_message('ERROR', 'In cron_job@MailSentForRo#non_fct_ro_approval  | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
+                        //$this->db->trans_rollback();
+                        $this->session->set_flashdata('approval_error', 'Something went wrong .');
+                        log_message('INFO', 'In cron_job@MailSentForRo#non_fct_ro_approval | Exiting');
+                        //redirect("/ro_manager/pending_requests");
+                        //echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
                     }
-                }
-                $client_approval_mail_attachment = pathinfo($roDetail[0]['client_approval_mail']);
-                $allfiles = $allfiles . "," . $actual_path_location . "" . $client_approval_mail_attachment['basename'];
-
-                $submittedUserDetail = $this->user_model->getUserDetailValues($roDetail[0]['user_id']);
-                $brand_name = $this->am_model->get_brand_names($roDetail[0]['brand']);
-                $where_data = array(
-                    'ext_ro_id' => $val['ro_id'],
-                    'cancel_type' => 'submit_ro_approval',
-                    'cancel_ro_by_admin' => 2
-                );
-                $get_request_details = $this->am_model->is_cancel_request_sent_by_am($where_data);
-                $reason = $get_request_details[0]['bh_reason'];
-                $make_good_type = '';
-                if ($roDetail[0]['make_good_type'] == 0) {
-                    $make_good_type = 'Auto Make Good';
-                } else if ($roDetail[0]['make_good_type'] == 1) {
-                    $make_good_type = 'Client approved make good';
-                } else {
-                    $make_good_type = 'No Make Good';
-                }
-
-                switch ($val['mail_status']) {
-
-                    //When the RO is submitted
-                    case 0:
-                        mail_send_v1($val['user_email_id'],
-                            'create_ext_ro',
-                            array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
-                            array(
-                                'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                                'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
-                                'INTERNAL_RO' => $roDetail[0]['internal_ro'],
-                                'AGENCY' => $roDetail[0]['agency'],
-                                'CLIENT' => $roDetail[0]['client'],
-                                'BRAND' => $brand_name,
-                                'MAKEGOOD_TYPE' => $make_good_type,
-                                'MARKET' => $roDetail[0]['market'],
-                                'INSTRUCTION' => $roDetail[0]['spcl_inst'],
-                                'START_DATE' => $roDetail[0]['camp_start_date'],
-                                'END_DATE' => $roDetail[0]['camp_end_date']
-                            ),
-                            $allfiles,
-                            $val['cc_email_id'],
-                            '',
-                            ''
-                        );
-                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                        break;
-                    //When RO is approved & Ready for Scheduling
-                    case 1:
-                        mail_send_v1($val['user_email_id'],
-                            'approve_ext_ro',
-                            array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
-                            array(
-                                'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                                'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
-                                'INTERNAL_RO' => $roDetail[0]['internal_ro'],
-                                'AGENCY' => $roDetail[0]['agency'],
-                                'CLIENT' => $roDetail[0]['client'],
-                                'BRAND' => $brand_name,
-                                'MAKEGOOD_TYPE' => $make_good_type,
-                                'MARKET' => $roDetail[0]['market'],
-                                'INSTRUCTION' => $roDetail[0]['spcl_inst'],
-                                'START_DATE' => $roDetail[0]['camp_start_date'],
-                                'END_DATE' => $roDetail[0]['camp_end_date']
-                            ),
-                            $allfiles,
-                            $val['cc_email_id'],
-                            '',
-                            ''
-                        );
-                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                        break;
-                    //When RO is Rejected
-                    case 2:
-                        mail_send_v1($val['user_email_id'],
-                            'reject_ext_ro',
-                            array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
-                            array(
-                                'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                                'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
-                                'INTERNAL_RO' => $roDetail[0]['internal_ro'],
-                                'AGENCY' => $roDetail[0]['agency'],
-                                'CLIENT' => $roDetail[0]['client'],
-                                'BRAND' => $brand_name,
-                                'MAKEGOOD_TYPE' => $make_good_type,
-                                'MARKET' => $roDetail[0]['market'],
-                                'INSTRUCTION' => $roDetail[0]['spcl_inst'],
-                                'START_DATE' => $roDetail[0]['camp_start_date'],
-                                'END_DATE' => $roDetail[0]['camp_end_date'],
-                                'REASON' => $reason
-                            ),
-                            $allfiles,
-                            $val['cc_email_id'],
-                            '',
-                            ''
-                        );
-                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                        break;
-                    //When RO is forwarded to upper level
-                    case 3:
-                        if ($val['approval_level'] == 2) {
-                            $forwarded_to = "National Head";
-                        } else if ($val['approval_level'] == 3) {
-                            $forwarded_to = "Business Head";
-                        }
-                        mail_send_v1($val['user_email_id'],
-                            'forward_ext_ro',
-                            array('EXTERNAL_RO' => $roDetail[0]['cust_ro']),
-                            array(
-                                'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                                'EXTERNAL_RO' => $roDetail[0]['cust_ro'],
-                                'INTERNAL_RO' => $roDetail[0]['internal_ro'],
-                                'AGENCY' => $roDetail[0]['agency'],
-                                'CLIENT' => $roDetail[0]['client'],
-                                'BRAND' => $brand_name,
-                                'MAKEGOOD_TYPE' => $make_good_type,
-                                'MARKET' => $roDetail[0]['market'],
-                                'INSTRUCTION' => $roDetail[0]['spcl_inst'],
-                                'START_DATE' => $roDetail[0]['camp_start_date'],
-                                'END_DATE' => $roDetail[0]['camp_end_date'],
-                                'FORWARDED_TO' => $forwarded_to
-                            ),
-                            $allfiles,
-                            $val['cc_email_id'],
-                            '',
-                            ''
-                        );
-                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                        break;
-
-                }
-            } else if ($mail_type == 'non_fct_ro_approval') {
-                //Mail for Non FCT RO
-                $this->ro_model->updateMailForRo(array('id' => $val['id']), array('mail_sent' => 2));
-                $roDetail = $this->am_model->get_non_fct_ro_details($val['ro_id'], $edit = null);
-                $submittedUserDetail = $this->user_model->getUserDetailValues($roDetail[0]['user_id']);
-
-                switch ($val['mail_status']) {
-                    //When the RO is submitted
-                    case 0:
-                      /*  mail_send_v1($val['user_email_id'],
-                            'create_non_fct_ro',
-                            array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
-                            array(
-                                'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                                'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
-                                'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
-                                'AGENCY' => $roDetail[0]['agency'],
-                                'CLIENT' => $roDetail[0]['client'],
-                                'INSTRUCTION' => $roDetail[0]['description']
-                            ),
-                            '',
-                            $val['cc_email_id'],
-                            '',
-                            ''
-                        );*/
-                        $mailPlaceHolderValues =    array( 'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                            'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
-                            'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
-                            'AGENCY' => $roDetail[0]['agency'],
-                            'CLIENT' => $roDetail[0]['client'],
-                            'INSTRUCTION' => $roDetail[0]['description']
-                        );
-                        $mailTemplateFileName   = "create_non_fct_ro.html";
-                        $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
-                        log_message('info', 'In cron_job@MailSentForRo | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
-                        $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
-                        if($status){
-                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is submitted and exiting  MailSentForRo function');
-                        }else{
-                            $this->ro_model->updateMailForRo(array('mail_sent' => 0, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is submitted but mail got failed and exiting  MailSentForRo function');
-                        }
-                        
-                        break;
-
-                    //When RO is approved
-                    case 1:
-                       /* mail_send_v1($val['user_email_id'],
-                            'approve_non_fct_ro',
-                            array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
-                            array(
-                                'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                                'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
-                                'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
-                                'AGENCY' => $roDetail[0]['agency'],
-                                'CLIENT' => $roDetail[0]['client'],
-                                'INSTRUCTION' => $roDetail[0]['description']
-                            ),
-                            '',
-                            $val['cc_email_id'],
-                            '',
-                            ''
-                        );
-                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                        break;*/
-
-                        $mailPlaceHolderValues =    array(
-                            'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                            'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
-                            'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
-                            'AGENCY' => $roDetail[0]['agency'],
-                            'CLIENT' => $roDetail[0]['client'],
-                            'INSTRUCTION' => $roDetail[0]['description']
-                        );
-                        $mailTemplateFileName   = "approve_non_fct_ro.html";
-                        $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
-                        log_message('info', 'In cron_job@MailSentForRo | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
-                        $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
-                        if($status){
-                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is approved and exiting  MailSentForRo function');
-                        }else{
-                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is approved but mail got failed and exiting  MailSentForRo function');
-                        }
-                        break;
-
-
-                    //When RO is Rejected
-                    case 2:
-                        /*mail_send_v1($val['user_email_id'],
-                            'reject_non_fct_ro',
-                            array('EXTERNAL_RO' => $roDetail[0]['customer_ro_number']),
-                            array(
-                                'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                                'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
-                                'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
-                                'AGENCY' => $roDetail[0]['agency'],
-                                'CLIENT' => $roDetail[0]['client'],
-                                'INSTRUCTION' => $roDetail[0]['description']
-                            ),
-                            '',
-                            $val['cc_email_id'],
-                            '',
-                            ''
-                        );
-                        $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                        break;*/
-                        $mailPlaceHolderValues =    array(
-                            'AM_NAME' => $submittedUserDetail[0]['user_name'],
-                            'EXTERNAL_RO' => $roDetail[0]['customer_ro_number'],
-                            'INTERNAL_RO' => $roDetail[0]['internal_ro_number'],
-                            'AGENCY' => $roDetail[0]['agency'],
-                            'CLIENT' => $roDetail[0]['client'],
-                            'INSTRUCTION' => $roDetail[0]['description']
-                        );
-                        $mailTemplateFileName   = "reject_non_fct_ro.html";
-                        $emailServiceObj        = new EmailService($val['user_email_id'],$val['cc_email_id']);
-                        log_message('info', 'In cron_job@MailSentForRo | non_fct_ro Email object initialised => ' . print_r($emailServiceObj, True));
-                        $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
-                        if($status){
-                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is rejected and exiting  MailSentForRo function');
-                        }else{
-                            $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('id' => $val['id']));
-                            log_message('info', 'In cron_job@MailSentForRo | non fct RO is rejected but mail got failed and exiting  MailSentForRo function');
-                        }
-                        break;
-
-                }
+                    
             } else if ($mail_type == 'channel_performance') {
+                log_message('info','In cron_job@MailSentForRo#channel_performance | printing the mail type ' . print_r($mail_type, True));
                 $givenDate = date('Y-m-d');
                 $to_mail_id = $val['user_email_id'];
                 $cc_mail_id = $val['cc_email_id'];
@@ -3226,23 +3258,35 @@ class Cron_job extends CI_Controller
                 } else {
                     $from_number_of_days = "-1";
                     $to_number_of_days = "-1";
-                    //$mail_key = "channel_performance_weekly";
-			        $mail_key = "channel_performance_monthly" ;
+                    $mail_key = "channel_performance_weekly";
+			        //$mail_key = "channel_performance_monthly" ;
                     //$this->generateChannelSummaryReport($from_number_of_days,$to_number_of_days,$to_mail_id,$cc_mail_id,$mail_key) ;
                 }
                 $this->generateChannelSummaryReport($from_number_of_days, $to_number_of_days, $to_mail_id, $cc_mail_id, $mail_key, $duration);
                 $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('mail_type' => 'channel_performance'));
+                log_message('INFO', 'In cron_job@MailSentForRo#channel_performance | Exiting');
+                
             } else if ($mail_type == 'cancel_ro_requested') {
-                log_message('info', 'In cron_job@MailSentForRo | cancel_ro_requested flow started. ');
+                log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | printing the mail type ' . print_r($mail_type, True));
                 $ro_id              = $val['ro_id'];
+                log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | ro_id is ' . print_r($ro_id, True));
+                
                 $to_email           = $val['user_email_id'];
                 $cc                 = $val['cc_email_id'];
+
                 $ro_details         = $this->am_model->ro_detail_for_ro_id($ro_id);
+                log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | printing ro_details ' . print_r($ro_details, True));
+                
                 $external_ro        = $ro_details[0]['cust_ro'];
                 $client_name        = $ro_details[0]['client'];
                 $agency_name        = $ro_details[0]['agency'];
+
                 $campaign_end_date  = $this->am_model->get_actual_campaign_end_date_for_ro($ro_details[0]['internal_ro']);
+                log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | campaign_end_date is ' . print_r($campaign_end_date, True));
+
                 $cancelled_data     = $this->am_model->get_cancelled_data(array('cancel_type' => 'cancel_ro', 'ext_ro_id' => $ro_id));
+                log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | printing cancelled_data ' . print_r($cancelled_data, True));
+
                 $user_id            = $cancelled_data[0]['user_id'];
                 $userName           = $this->am_model->get_user_name($user_id);
 
@@ -3273,24 +3317,29 @@ class Cron_job extends CI_Controller
                         'CANCEL_REASON' => $cancelled_data[0]['reason'],
                         'BILLING_INSTRUCTION' => $cancelled_data[0]['invoice_instruction'],
                     );
+                log_message('info','In cron_job@MailSentForRo#cancel_ro_requested | mailPlaceHolderValues are.'.print_r($mailPlaceHolderValues,true));
                 $mailTemplateFileName   = "am_cancel_ext_ro.html";
+
+                log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | to and cc emails are - '.print_r(array('to'=>$to_email,'cc'=>$cc),True));
                 $emailServiceObj        = new EmailService($to_email,$cc);
                 log_message('info', 'In cron_job@MailSentForRo | Email object initialised => ' . print_r($emailServiceObj, True));
                 
                 $status = $emailServiceObj->sendMailOverApi($mailTemplateFileName,$mailPlaceHolderValues);
                 if($status){
                     $this->ro_model->updateMailForRo(array('mail_sent' => 1, 'mail_sent_date' => date('Y-m-d')), array('ro_id' => $ro_id, 'mail_type' => 'cancel_ro_requested'));
-                    log_message('info', 'In cron_job@MailSentForRo | RO cancellation request mail sent and exiting  MailSentForRo function');
+                    log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | RO cancellation request mail sent and exiting  MailSentForRo function');
                 }else{
                     $this->ro_model->updateMailForRo(array('mail_sent' => 0, 'mail_sent_date' => date('Y-m-d')), array('ro_id' => $ro_id, 'mail_type' => 'cancel_ro_requested'));
-                    log_message('info', 'In cron_job@MailSentForRo | RO cancellation request mail didnt sent and exiting  MailSentForRo function');
+                    log_message('info', 'In cron_job@MailSentForRo#cancel_ro_requested | RO cancellation request mail didnt sent and exiting  MailSentForRo function');
                 }
+                log_message('INFO', 'In cron_job@MailSentForRo#cancel_ro_requested | Exiting');
             }
         }
     }
 
     public function generateChannelSummaryReport($from_number_of_days, $to_number_of_days, $to_mail_id, $cc_mail_id, $mail_key, $duration)
     {
+        log_message('info','In cron_job@MailSentForRo#channel_performance#generateChannelSummaryReport | Entered with arguments => ' . print_r(func_get_args(), True));
         $onlineChannelSummary = $this->mg_model->getOnlineChannelSummary($from_number_of_days, $to_number_of_days);
         $channelSummary = $this->mg_model->getChannelSummary($from_number_of_days, $to_number_of_days);
 
@@ -3346,10 +3395,11 @@ class Cron_job extends CI_Controller
             'OFFLINE_CHANNEL_DATA' => $OfflinePerformanceReport,
             'DEPLOYED_NOT_PINGING' => $deployNotPinging
         );
-        log_message('INFO', 'In cron_job@generateChannelSummaryReport | calling the email service with following parameters - '.print_r($mailPlaceHolderValues, true));
+        
+        log_message('INFO', 'In cron_job@MailSentForRo#channel_performance#generateChannelSummaryReport | calling the email service with following parameters - '.print_r($mailPlaceHolderValues, true));
         $emailServiceObj = new EmailService($to_mail_id,$cc_mail_id);
         $status = $emailServiceObj->sendMailOverApi($mail_key.'.html',$mailPlaceHolderValues);
-        log_message('INFO', 'In cron_job@generateChannelSummaryReport | printing the response of email service '.print_r($status, true));
+        log_message('INFO', 'In cron_job@MailSentForRo#channel_performance#generateChannelSummaryReport | printing the response of email service '.print_r($status, true));
     }
 
     public function getMailTemplateId($mail_type)

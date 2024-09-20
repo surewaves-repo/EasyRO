@@ -1776,14 +1776,15 @@ class RO_manager extends CI_Controller
                 log_message('DEBUG', 'In ro_manager@submit_ro_reject | Transaction Completed.');
             }
             log_message('INFO', 'In ro_manager@submit_ro_reject | Exiting');
-            redirect("/ro_manager/pending_requests");
-            //echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
+            //redirect("/ro_manager/pending_requests");
+            echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
         }catch(Exception $e){
             log_message('ERROR', 'In ro_manager@submit_ro_reject | Exception error is -- '. print_r($e->getTraceAsString(),TRUE));
             $this->db->trans_rollback();
-            $this->session->set_flashdata('approval_error', 'Something went wrong while forwarding the ro.');
+            $this->session->set_flashdata('approval_error', 'Something went wrong while rejecting the ro.');
             log_message('INFO', 'In ro_manager@submit_ro_reject | Exiting');
-            redirect("/ro_manager/pending_requests");
+            //redirect("/ro_manager/pending_requests");
+            echo '<script>parent.jQuery.colorbox.close();parent.location.reload();</script>';
         }
     }
 
