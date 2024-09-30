@@ -89,7 +89,7 @@ class User_model extends CI_Model
         $logged_in = $this->session->userdata("logged_in_user");
         $is_test_user = $logged_in[0]['is_test_user'];
 
-        $query = "select * from ro_user where profile_id IN(1,2) and is_test_user='$is_test_user'";
+        $query = "select * from ro_user where profile_id IN(1) and is_test_user='$is_test_user' and active = 1 ";
         $res = $this->db->query($query);
         if ($res->num_rows() > 0) {
             return $res->result("array");

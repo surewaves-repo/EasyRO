@@ -146,7 +146,7 @@ class EmailService
 //        echo "<pre>";print_r($paramObj->mail);
         $paramObj->placeholders = new \stdClass();
         foreach($placeHoldersKeyValuePair as $key => $value){
-            $paramObj->placeholders->$key = $value;
+            $paramObj->placeholders->$key = (string)$value;
        	}
 
 

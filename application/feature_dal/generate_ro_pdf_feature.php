@@ -207,7 +207,7 @@ ORDER by sacsd.DATE ASC , sacsd.campaign_id ASC ,sacsd.enterprise_id asc;");
     {
         try{
             log_message('DEBUG', 'In GenerateRoPdfFeature@checkNetworkRoExistAgainstInternalRo | Entered with arguments ' . print_r(func_get_args(), True));
-            $condition = array(array('internal_ro_number', $internalRo));
+           // $condition = array(array('internal_ro_number', $internalRo));
             
 	    //DB::enableQueryLog();
 	    //$result = $this->RoNetworkRoReportDetails->getColumnsWhere($condition, array('*'));
@@ -325,6 +325,29 @@ ORDER by sacsd.DATE ASC , sacsd.campaign_id ASC ,sacsd.enterprise_id asc;");
         }
         
 
+    }
+    public function checkIfMailDataExist($subject){
+        log_message('DEBUG', 'In GenerateRoPdfFeature@checkIfMailDataExist |  Entered with arguments ' . print_r(func_get_args(), True));
+        $result = DB::select("select * from ro_mail_data where subject LIKE '%$subject%' ");
+
+        $result = json_decode(json_encode($result), true);
+        log_message('DEBUG', 'In GenerateRoPdfFeature@checkIfMailDataExist | Before exiting , the db query values are'. print_r($result , TRUE));
+        if (count($result) > 0) {
+            return $result;
+        }
+        return array();
+    }
+    public function updateRoMailData($updateData,$id){
+        try{
+            log_message('DEBUG', 'In GenerateRoPdfFeature@updateRoMailData | Entered with arguments ' . print_r(func_get_args(), True));
+            $where_data = array(array('id', $id));
+        
+            $this->RoMailData->updateData($where_data,$updateData);
+            log_message('DEBUG', 'In GenerateRoPdfFeature@updateRoMailData | Exiting');
+        }catch(QueryException $e){
+            log_message('error', 'In GenerateRoPdfFeature@updateRoMailData | At line number '.__LINE__.' Exception error is '.print_r($e->getMessage(),True));
+	        throw $e;
+        } 
     }
 
 }

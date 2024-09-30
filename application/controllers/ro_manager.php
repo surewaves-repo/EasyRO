@@ -4246,72 +4246,128 @@ class RO_manager extends CI_Controller
 
     public function approval_request()
     {
-        $order_id = $this->input->post('order_id');
-        $edit = $this->input->post('edit');
-        $am_ro_id = $this->input->post('id');
-        $this->is_logged_in();
-        $logged_in = $this->session->userdata("logged_in_user");
+        try{
 
-        $profile_ids = array('0' => 1, '1' => 2);
-        $users = $this->user_model->get_all_mainusers(implode(',', $profile_ids));
-        $order = $this->ro_model->get_ro_data($order_id);
-        log_message('info','in ro_manager@approval_request | $order - '.print_r($order,true));
-        $internal_ro = $order_id;
-        $data = array(
-            'customer_ro_number' => $order[0]['customer_ro_number'],
-            'internal_ro_number' => $order[0]['internal_ro_number'],
-            'start_date' => $order[0]['start_date'],
-            'end_date' => $order[0]['end_date'],
-            'ro_approval_request_status' => 1
-        );
-        log_message('info','in ro_manager@approval_request | $data - '.print_r($data,true));
-        $this->db->trans_start();
-        $this->ro_model->ro_approval_request_status($data);
-        //@changed by mani:get new ro's detail from external ro and update ro status
-        $ro_details = $this->am_model->get_ro_details_for_external_ro($order[0]['customer_ro_number']);
-        $this->am_model->update_ro_status($ro_details[0]['id'], 'approval_requested');
+            log_message('info', 'ro_manager@approval_request | Entering with Data ' . print_r($_POST, True));
+            $this->is_logged_in();
+            $logged_in = $this->session->userdata("logged_in_user");
 
-        $external_ro = $order[0]['customer_ro_number'];
-        //Entry Into ro_cancel_external_ro
-        $approvalData = array(
-            'approval_level' => 3
-        );
-        $whereApprovalData = array(
-            'ext_ro_id' => $am_ro_id,
-            'cancel_type' => 'ro_approval',
-        );
-        $this->ro_model->insert_for_pending_status($whereApprovalData, $approvalData);
-        $this->db->trans_complete();
+            $response = [];
 
-        $users = $this->user_model->get_bhs();
-        $text = "ro_approval_request_alert";
-        $login_url = 'http://' . $_SERVER['SERVER_NAME'] . ROOT_FOLDER;
-        $subject = array('EXTERNAL_RO' => $external_ro);
-        $file = '';
-        $url = '';
-        foreach ($users as $key => $user) {
-            $to = $user['user_email'];
-            $message = array(
-                'USER_NAME' => $user['user_name'],
+            $order_id       = $this->input->post('order_id');
+            $edit           = $this->input->post('edit');
+            $am_ro_id       = $this->input->post('id');
+            $profile_ids    = array('0' => 1, '1' => 2);
+
+            //$users = $this->user_model->get_all_mainusers(implode(',', $profile_ids));
+            $order          = $this->ro_model->get_ro_data($order_id);
+            log_message('info', 'ro_manager@approval_request | value of order array - ' . print_r($order, True));
+            
+            $internal_ro = $order_id;
+            $data = array(
+                'customer_ro_number' => $order[0]['customer_ro_number'],
+                'internal_ro_number' => $order[0]['internal_ro_number'],
+                'start_date' => $order[0]['start_date'],
+                'end_date' => $order[0]['end_date'],
+                'ro_approval_request_status' => 1
+            );
+            log_message('info','in ro_manager@approval_request | $data - '.print_r($data,true));
+            $this->db->trans_start();
+            $this->ro_model->ro_approval_request_status($data);
+
+            //@changed by mani:get new ro's detail from external ro and update ro status
+            $ro_details = $this->am_model->get_ro_details_for_external_ro($order[0]['customer_ro_number']);
+
+            $this->am_model->update_ro_status($ro_details[0]['id'], 'approval_requested');
+
+            $external_ro = $order[0]['customer_ro_number'];
+            //Entry Into ro_cancel_external_ro
+            $approvalData = array(
+                'approval_level' => 3
+            );
+            $whereApprovalData = array(
+                'ext_ro_id' => $am_ro_id,
+                'cancel_type' => 'ro_approval',
+            );
+
+            $this->ro_model->insert_for_pending_status($whereApprovalData, $approvalData);
+            
+
+            //$users = $this->user_model->get_bhs();
+            //$text = "ro_approval_request_alert";
+            //$login_url = 'http://' . $_SERVER['SERVER_NAME'] . ROOT_FOLDER;
+            //$subject = array('EXTERNAL_RO' => $external_ro);
+           // $file = '';
+           // $url = '';
+        /*  foreach ($users as $key => $user) {
+                $to = $user['user_email'];
+                $message = array(
+                    'USER_NAME' => $user['user_name'],
+                    'EXTERNAL_RO' => $external_ro,
+                    'INTERNAL_RO' => $internal_ro,
+                    'START_DATE' => date('Y-m-d', strtotime($order[0]['start_date'])),
+                    'END_DATE' => date('Y-m-d', strtotime($order[0]['end_date'])),
+                    'CURRENT_USER' => $logged_in[0]['user_name'],
+                    'LOGIN_URL' => $login_url,
+                );
+                mail_send($to, $text, $subject, $message, $file, '', $url);
+            }*/
+            $users = $this->user_model->get_bhs();
+            $login_url = 'https://' . $_SERVER['SERVER_NAME'] . ROOT_FOLDER;
+            $to = $users[0]['user_email'];
+
+            $mailTemplateFileName = "ro_approval_request_alert.html";
+            $mailPlaceHolderValues = [
+                'USER_NAME' => $users[0]['user_name'],
                 'EXTERNAL_RO' => $external_ro,
                 'INTERNAL_RO' => $internal_ro,
                 'START_DATE' => date('Y-m-d', strtotime($order[0]['start_date'])),
                 'END_DATE' => date('Y-m-d', strtotime($order[0]['end_date'])),
                 'CURRENT_USER' => $logged_in[0]['user_name'],
                 'LOGIN_URL' => $login_url,
+            ];
+            $emailObject = new EmailService($to);
+            $mailSent = $emailObject->sendMailOverApi(
+                $mailTemplateFileName,
+                $mailPlaceHolderValues
             );
-            mail_send($to, $text, $subject, $message, $file, '', $url);
-        }
+            if (!$mailSent) {
+                $this->db->trans_rollback();
+                log_message('ERROR', 'In ro_manager@approval_request | Mail was not sent to Bussiness head ');
+                $response['Status'] = 'Fail';
+                $response['Message'] = 'Approval Request not sent as some thing went wrong while sending mail to Bussiness Head !!';
+                $response['Data'] = array();
+                $this->output
+                    ->set_content_type('application/json')
+                    ->set_status_header(500)
+                    ->set_output(json_encode($response));
+                return;
+            }
 
-        //echo '<script language="javascript">top.location.href="' . ROOT_FOLDER . '/ro_manager/approve/' . $order_id . '/' . $edit . '/' . $am_ro_id . '";</script>';
-        $response['Status'] = 'success';
-        $response['Message'] = 'Approval Request Sent !!';
-        $response['Data'] = array();
-        $this->output
-            ->set_content_type('application/json')
-            ->set_status_header(200)
-            ->set_output(json_encode($response));
-        return;
+            $this->db->trans_complete();
+            //echo '<script language="javascript">top.location.href="' . ROOT_FOLDER . '/ro_manager/approve/' . $order_id . '/' . $edit . '/' . $am_ro_id . '";</script>';
+            $response['Status'] = 'success';
+            $response['Message'] = 'Approval Request Sent !!';
+            $response['Data'] = array();
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(200)
+                ->set_output(json_encode($response));
+            return;
+
+        }catch(Exception $e){
+
+            log_message('ERROR', 'In ro_manager@approval_request | Something went wrong while sending the approval request to Business head. Exception occured -'.print_r($e->getTraceAsString(),TRUE));
+            $response['Status'] = 'fail';
+            $response['Message'] = 'Approval Request could not send !!';
+            $response['Data'] = array();
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(500)
+                ->set_output(json_encode($response));
+            return;
+        }
+        
     }
 
     public function add_other_expenses()

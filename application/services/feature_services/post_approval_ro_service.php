@@ -347,7 +347,7 @@ class postApprovalRoService
             'MARKETS' => $marketNames,
             'MAKEGOOD' => $MakeGood
         );
-        log_message('info','In postApprovalRoService@approvalMailToSchedulerAndOperation | Mail message for Scheduler, Operation is '.print_r($message,True));
+        //log_message('info','In postApprovalRoService@approvalMailToSchedulerAndOperation | Mail message for Scheduler, Operation is '.print_r($message,True));
 
         //Added sw support email
         //$userEmailIds = $userEmailIds . ',' . $this->CI->config->item('from_email') ;
@@ -412,7 +412,7 @@ class postApprovalRoService
             'TABLE_WITH_DATA' => $htmlTable
         );
         
-        log_message('info','In postApprovalRoService@approvalMailToBHAndCoo | Mail message for BH,COO is '.print_r($message,True));
+        //log_message('info','In postApprovalRoService@approvalMailToBHAndCoo | Mail message for BH,COO is '.print_r($message,True));
 
         //Added sw support email
         //$userAdminEmails = $userAdminEmails . ',' . $this->CI->config->item('from_email') ;

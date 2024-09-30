@@ -564,6 +564,9 @@
             },
             error:function()
             {
+                alert(responsedata.Message);
+                window.location.href = BASE_URL + "/account_manager/home";
+                $('#scheduler_approval_request_span').css('display', 'none');
                 $('#loader_background').css("display", "none");
                 $('#loader_spin').css("display", "none");
             }

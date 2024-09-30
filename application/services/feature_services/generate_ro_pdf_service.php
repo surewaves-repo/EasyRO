@@ -648,7 +648,7 @@ class GenerateRoPdfService
 
                 //$status = $this->s3FileUploadObj->uploadFile($eachFilePath, $eachFileName);
                 $retArr = $this->s3FileUploadObj->uploadFileOverApi($eachFilePath, $eachFileName);
-                log_message('info','In GenerateRoPdfService@uploadPdfToS3 | After uploading to s3 , the status is' . print_r($status, True));
+                log_message('info','In GenerateRoPdfService@uploadPdfToS3 | After uploading to s3 , the array returned is' . print_r($retArr, True));
                 //if ($status == True) {
                 if ($retArr['status'] == True) {
                     log_message('INFO', 'In GenerateRoPdfService@uploadPdfToS3 | Pdf File Uploaded successfully');
@@ -1112,7 +1112,13 @@ class GenerateRoPdfService
                 'network_ro_number' => $networkRo
             );
 	    echo "in storeMailDataBeforeSending fun printing user_data variable---<pre>";print_r($user_data);
-            $this->featureObj->insertIntoRoMailData($user_data);
+            $mailData = $this->featureObj->checkIfMailDataExist(serialize($mailData['subject']));
+            if(count($mailData) > 0){
+                $this->featureObj->updateRoMailData($user_data,$mailData[0]['id']);
+            }else{
+                $this->featureObj->insertIntoRoMailData($user_data);
+            }
+            
             log_message('info', 'In GenerateRoPdfService@storeMailDataBeforeSending | Exiting');
             return array('gotError'=>false,'data'=>array());
 
