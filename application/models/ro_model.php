@@ -1823,7 +1823,11 @@ group by sr.screen_region_id";
 
         $net_revenue = $gross_ro_amount - $agency_commission_amount;
         $net_revenue = round(($net_revenue * SERVICE_TAX), 2);
-        $net_contribution_amount_per = round(($net_contribution_amount / $net_revenue) * 100, 2);
+	if($net_revenue > 0){
+        	$net_contribution_amount_per = round(($net_contribution_amount / $net_revenue) * 100, 2);
+	}else{
+		$net_contribution_amount_per = 0;
+	}
 
         $total_scheduled_seconds = $this->mg_model->get_total_network_seconds_internal_ro($internal_ro_number);
 

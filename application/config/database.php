@@ -52,6 +52,7 @@ $active_record = TRUE;
 //For Development
 //$db['default']['hostname'] = 'mg100productiondb-new.cdyb3snbqfdt.ap-southeast-1.rds.amazonaws.com';
 $db['default']['hostname'] = 'mediagrid-provisioned-digixpress.cdyb3snbqfdt.ap-southeast-1.rds.amazonaws.com';
+#$db['default']['hostname'] = 'mediagrid-mysql-proxy.proxy-cdyb3snbqfdt.ap-southeast-1.rds.amazonaws.com';
 $db['default']['username'] = 'surewaves';
 $db['default']['password'] = 'Mg100Sure$$28grid';
 // For Development , Testing  & Production

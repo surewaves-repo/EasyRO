@@ -36,6 +36,7 @@ class GenerateRoPdfFeature extends BaseDAL
 	                             customer_share,
 	                             sum(channel_spot_amount) + sum(channel_banner_amount) as Net_Amount'))
             ->where($condition)
+	    ->whereNotIn('customer_id',[400,1057])
             ->groupBy('internal_ro_number', 'customer_id')
             ->orderBy('id', 'desc')
             ->get();
