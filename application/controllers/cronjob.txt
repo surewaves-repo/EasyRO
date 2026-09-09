@@ -1,0 +1,9 @@
+@reboot sleep 60 && systemctl stop apache2 && /opt/lampp/lampp start
+*/10 * * * * /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/process_requested_reports
+*/10 * * * * wget  --delete-after http://easyro.surewaves.com/surewaves_easy_ro/cron_job/generate_ro_pdfs
+#*/120 * * * * /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/mail_notice_intimation
+*/10 * * * * /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/progression_emails
+00 1 * * * /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/getChannelPerformance
+10 0 * * * /opt/lampp/bin/php /opt/lampp/htdocs/surewaves_easy_ro/cron.php /cron_job/generateMisReport
+00 5 * * * find /opt/lampp/htdocs/surewaves_easy_ro/easy_ro_temp_pdf  -type f  -mtime +90 -exec rm {} \ ; > /mnt/logs/deleteTempPdfFiles.log
+00 17 * * * find /mnt/logs/ -maxdepth 1 -type f -mtime +2 -print | sort -n -r | xargs /bin/rm -f
